@@ -73,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ws2tcp-local-windows-x64
-          path: build/ws2tcp-local-*-win64.exe
+          path: build/ws2tcp-local-gui-*-win64.exe
           if-no-files-found: error
 
   macos:
@@ -131,5 +131,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ws2tcp-local-macos-arm64
-          path: build/ws2tcp-local-*-macos-arm64.dmg
+          path: build/ws2tcp-local-gui-*-macos-arm64.dmg
           if-no-files-found: error

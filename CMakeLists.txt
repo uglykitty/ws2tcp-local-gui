@@ -456,6 +456,9 @@ if(WIN32)
     set(CPACK_PACKAGE_VENDOR "ws2tcp-local")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
         "Local WebSocket-to-TCP proxy")
+    # Keep the installer file name distinct from the ws2tcp-local CLI assets.
+    set(CPACK_PACKAGE_FILE_NAME
+        "ws2tcp-local-gui-${PROJECT_VERSION}-win64")
     set(CPACK_PACKAGE_INSTALL_DIRECTORY
         "ws2tcp-local")
     set(CPACK_PACKAGE_EXECUTABLES
@@ -489,7 +492,7 @@ if(APPLE)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
         "Local WebSocket-to-TCP proxy")
     set(CPACK_PACKAGE_FILE_NAME
-        "ws2tcp-local-${PROJECT_VERSION}-macos-${CMAKE_SYSTEM_PROCESSOR}")
+        "ws2tcp-local-gui-${PROJECT_VERSION}-macos-${CMAKE_SYSTEM_PROCESSOR}")
     set(CPACK_DMG_VOLUME_NAME "ws2tcp-local ${PROJECT_VERSION}")
     set(CPACK_DMG_FORMAT "UDZO")
     set(CPACK_RESOURCE_FILE_LICENSE

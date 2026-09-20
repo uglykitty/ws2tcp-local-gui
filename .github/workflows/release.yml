@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ws2tcp-local-windows-x64
-          path: build/ws2tcp-local-*-win64.exe
+          path: build/ws2tcp-local-gui-*-win64.exe
           if-no-files-found: error
 
   macos:
@@ -180,7 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          images=(build/ws2tcp-local-*-macos-arm64.dmg)
+          images=(build/ws2tcp-local-gui-*-macos-arm64.dmg)
           if [[ ${#images[@]} -ne 1 ]]; then
             echo "Expected exactly one DMG, found ${#images[@]}" >&2
             exit 1
@@ -200,7 +200,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ws2tcp-local-macos-arm64
-          path: build/ws2tcp-local-*-macos-arm64.dmg
+          path: build/ws2tcp-local-gui-*-macos-arm64.dmg
           if-no-files-found: error
 
   publish:

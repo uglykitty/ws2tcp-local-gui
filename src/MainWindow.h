@@ -128,6 +128,9 @@ class MainWindow final : public QMainWindow {
   int bufferSize_ = 16 * 1024;
   int refreshIntervalSeconds_ = 60;
   bool insecure_ = false;
+  // How to authenticate to the gateway: "token" (default) or "basic", the
+  // compatibility method that is being phased out.
+  QString authMode_ = QStringLiteral("token");
   QString closeBehavior_ = "ask";
   QString sessionCloseBehavior_;
   QString language_ = "en_US";

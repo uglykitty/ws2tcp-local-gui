@@ -413,6 +413,35 @@ Restart WSL (run &quot;wsl --shutdown&quot; in a terminal) for the change to tak
 
 需要重启 WSL(在终端运行 &quot;wsl --shutdown&quot;)才能生效。</translation>
     </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="757"/>
+        <source>
+
+If the gateway is an older ws2tcp-router without token authentication, choose the Basic authentication method in Settings.</source>
+        <translation>
+
+如果网关是不支持 token 认证的旧版 ws2tcp-router,请在设置中选择 Basic 认证方式。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="813"/>
+        <source>Token (recommended)</source>
+        <translation>Token(推荐)</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="814"/>
+        <source>Basic (compatibility, being phased out)</source>
+        <translation>Basic(仅为兼容,将被淘汰)</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="822"/>
+        <source>Token: log in once and open connections with a short-lived access token, so the password is not sent every time. Basic: send the password with every connection; only for a gateway (ws2tcp-router) that has no token authentication.</source>
+        <translation>Token:登录一次,之后用短期有效的 access token 建立连接,不必每次都发送密码。Basic:每个连接都发送密码,仅用于没有 token 认证的网关(ws2tcp-router)。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="826"/>
+        <source>Authentication</source>
+        <translation>认证方式</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>

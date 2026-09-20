@@ -749,8 +749,16 @@ void MainWindow::refreshStatus() {
             tr("The gateway rejected the username or password. Check the "
                "credentials and start again."));
       } else if (kind == WS2TCP_ERROR_KIND_GATEWAY_CHECK_FAILED) {
-        showGatewayCheckFailure(
-            tr("The gateway is not available.\n\n%1").arg(error));
+        QString message =
+            tr("The gateway is not available.\n\n%1").arg(error);
+        if (authMode_ == QLatin1String("token")) {
+          // A gateway without token authentication (an older ws2tcp-router)
+          // fails the login in the same way as an unreachable one.
+          message += tr("\n\nIf the gateway is an older ws2tcp-router "
+                        "without token authentication, choose the Basic "
+                        "authentication method in Settings.");
+        }
+        showGatewayCheckFailure(message);
       }
     } else {
       updateRuntimeStatus(tr("Stopped"));
@@ -801,6 +809,22 @@ void MainWindow::showSettingsDialog() {
   form->addRow(tr("Skip TLS certificate verification (insecure)"),
               insecureCheck);
 
+  auto *authModeCombo = new QComboBox(&dialog);
+  authModeCombo->addItem(tr("Token (recommended)"), "token");
+  authModeCombo->addItem(tr("Basic (compatibility, being phased out)"),
+                         "basic");
+  const int authModeIndex = authModeCombo->findData(authMode_);
+  if (authModeIndex >= 0) {
+    authModeCombo->setCurrentIndex(authModeIndex);
+  }
+  authModeCombo->setEnabled(!running);
+  authModeCombo->setToolTip(
+      tr("Token: log in once and open connections with a short-lived access "
+         "token, so the password is not sent every time. Basic: send the "
+         "password with every connection; only for a gateway "
+         "(ws2tcp-router) that has no token authentication."));
+  form->addRow(tr("Authentication"), authModeCombo);
+
   auto *closeBehaviorCombo = new QComboBox(&dialog);
   closeBehaviorCombo->addItem(tr("Ask every time"), "ask");
   closeBehaviorCombo->addItem(tr("Minimize to tray"), "tray");
@@ -838,6 +862,7 @@ void MainWindow::showSettingsDialog() {
     bufferSize_ = bufferSizeSpin->value();
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
+    authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
 #ifdef Q_OS_WIN
@@ -1103,6 +1128,7 @@ QByteArray MainWindow::buildConfigJson() const {
   config["rule_refresh_interval_secs"] = refreshIntervalSeconds_;
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
+  config["auth_mode"] = authMode_;
   QJsonObject headers;
   headers["User-Agent"] = QStringLiteral("ws2tcp-local-gui/%1")
                               .arg(QCoreApplication::applicationVersion());
@@ -1247,6 +1273,11 @@ void MainWindow::loadUserSettings() {
   }
 
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
+  const QString authMode =
+      settings.value("proxy/auth_mode", authMode_).toString();
+  if (authMode == "token" || authMode == "basic") {
+    authMode_ = authMode;
+  }
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
   systemProxyCheck_->setChecked(
       settings.value("proxy/set_system_proxy", false).toBool());
@@ -1278,6 +1309,7 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("ui/close_behavior", closeBehavior_);
   settings.setValue("ui/language", language_);
   settings.setValue("proxy/insecure", insecure_);
+  settings.setValue("proxy/auth_mode", authMode_);
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
   settings.setValue("proxy/set_system_proxy",
                     systemProxyCheck_->isChecked());

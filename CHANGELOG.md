@@ -5,6 +5,12 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.1.1] - 2026-09-20
+
+### 💼 Other
+
+- *(package)* Prefix installer and DMG file names with ws2tcp-local-gui
+
 ## [0.1.0] - 2026-09-20
 
 ### 💼 Other

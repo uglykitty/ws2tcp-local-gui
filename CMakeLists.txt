@@ -1,0 +1,499 @@
+cmake_minimum_required(VERSION 3.21)
+
+project(ws2tcp-local-gui VERSION 0.1.0 LANGUAGES CXX)
+
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
+
+include(GNUInstallDirs)
+include(FetchContent)
+
+if(MSVC)
+    # RUNTIME_DEPENDENCY_SET excludes DLLs resolved from System32 below.  The
+    # MSVC redistributable is available there on GitHub-hosted runners, so use
+    # CMake's toolchain-aware discovery to bundle it explicitly instead of
+    # requiring users to install the redistributable separately.
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+    include(InstallRequiredSystemLibraries)
+endif()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Network Widgets LinguistTools)
+
+set(WS2TCP_LOCAL_CLI_SOURCE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local"
+    CACHE PATH "Path to the ws2tcp-local Rust CLI crate")
+
+if(NOT EXISTS "${WS2TCP_LOCAL_CLI_SOURCE_DIR}/Cargo.toml")
+    message(FATAL_ERROR
+        "ws2tcp-local CLI was not found at ${WS2TCP_LOCAL_CLI_SOURCE_DIR}. "
+        "Set WS2TCP_LOCAL_CLI_SOURCE_DIR to its source directory.")
+endif()
+
+FetchContent_Declare(Corrosion
+    GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
+    GIT_TAG 1499b14e4906a2890f5cee1547c8848db261753d)
+FetchContent_MakeAvailable(Corrosion)
+
+corrosion_import_crate(
+    MANIFEST_PATH "${WS2TCP_LOCAL_CLI_SOURCE_DIR}/Cargo.toml"
+    CRATES ws2tcp-local
+    CRATE_TYPES bin
+    LOCKED)
+
+option(WS2TCP_LOCAL_FFI_AUTO_BUILD
+    "Build ws2tcp-local-ffi with Cargo when no prebuilt FFI library is provided"
+    ON)
+set(WS2TCP_LOCAL_FFI_SOURCE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local-ffi"
+    CACHE PATH "Path to the ws2tcp-local-ffi Rust crate")
+set(WS2TCP_LOCAL_FFI_CRATE_VERSION
+    "0.1.8"
+    CACHE STRING "ws2tcp-local-ffi crate version to fetch from crates.io when the local crate is missing")
+set(WS2TCP_LOCAL_FFI_INCLUDE_DIR
+    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local-ffi/include"
+    CACHE PATH "Path to ws2tcp-local FFI headers")
+set(WS2TCP_LOCAL_FFI_TARGET_DIR
+    ""
+    CACHE PATH "Cargo target directory for ws2tcp-local-ffi auto-build artifacts")
+set(WS2TCP_LOCAL_FFI_LIBRARY
+    ""
+    CACHE FILEPATH "Path to the ws2tcp-local FFI static library")
+
+function(ws2tcp_local_ffi_artifact profile out_library)
+    if(WS2TCP_LOCAL_FFI_TARGET_DIR)
+        set(artifact_dir "${WS2TCP_LOCAL_FFI_TARGET_DIR}/${profile}")
+    else()
+        set(artifact_dir "${WS2TCP_LOCAL_FFI_SOURCE_DIR}/target/${profile}")
+    endif()
+
+    if(WIN32)
+        if(MSVC)
+            set(library "${artifact_dir}/ws2tcp_local_ffi.lib")
+        else()
+            set(library "${artifact_dir}/libws2tcp_local_ffi.a")
+        endif()
+    else()
+        set(library "${artifact_dir}/libws2tcp_local_ffi.a")
+    endif()
+
+    set("${out_library}" "${library}" PARENT_SCOPE)
+endfunction()
+
+function(ws2tcp_local_ffi_resolve_cratesio out_source_dir out_include_dir)
+    set(resolve_dir "${CMAKE_BINARY_DIR}/_deps/ws2tcp-local-ffi-cratesio")
+    set(resolve_manifest "${resolve_dir}/Cargo.toml")
+
+    file(MAKE_DIRECTORY "${resolve_dir}/src")
+    file(WRITE "${resolve_dir}/src/lib.rs" "")
+    file(WRITE "${resolve_manifest}"
+"[package]
+name = \"ws2tcp-local-ffi-resolver\"
+version = \"0.0.0\"
+edition = \"2024\"
+publish = false
+
+[dependencies]
+ws2tcp-local-ffi = \"=${WS2TCP_LOCAL_FFI_CRATE_VERSION}\"
+")
+
+    execute_process(
+        COMMAND
+            "${CMAKE_COMMAND}" -E env
+                "--unset=http_proxy"
+                "--unset=https_proxy"
+                "--unset=all_proxy"
+                "--unset=HTTP_PROXY"
+                "--unset=HTTPS_PROXY"
+                "--unset=ALL_PROXY"
+                "${CARGO_EXECUTABLE}" metadata
+                --format-version=1
+                --manifest-path "${resolve_manifest}"
+        WORKING_DIRECTORY "${resolve_dir}"
+        RESULT_VARIABLE cargo_metadata_result
+        OUTPUT_VARIABLE cargo_metadata_output
+        ERROR_VARIABLE cargo_metadata_error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if(NOT cargo_metadata_result EQUAL 0)
+        message(FATAL_ERROR
+            "Failed to fetch ws2tcp-local-ffi ${WS2TCP_LOCAL_FFI_CRATE_VERSION} from crates.io.\n"
+            "${cargo_metadata_error}")
+    endif()
+
+    string(JSON package_count LENGTH "${cargo_metadata_output}" packages)
+    math(EXPR package_last "${package_count} - 1")
+    set(resolved_manifest "")
+
+    foreach(package_index RANGE 0 ${package_last})
+        string(JSON package_name GET "${cargo_metadata_output}" packages ${package_index} name)
+        string(JSON package_version GET "${cargo_metadata_output}" packages ${package_index} version)
+        if(package_name STREQUAL "ws2tcp-local-ffi" AND
+                package_version STREQUAL "${WS2TCP_LOCAL_FFI_CRATE_VERSION}")
+            string(JSON resolved_manifest GET "${cargo_metadata_output}" packages ${package_index} manifest_path)
+            break()
+        endif()
+    endforeach()
+
+    if(NOT resolved_manifest)
+        message(FATAL_ERROR
+            "Cargo downloaded metadata, but ws2tcp-local-ffi ${WS2TCP_LOCAL_FFI_CRATE_VERSION} "
+            "was not found in the resolved package list.")
+    endif()
+
+    get_filename_component(resolved_source_dir "${resolved_manifest}" DIRECTORY)
+    set(resolved_include_dir "${resolved_source_dir}/include")
+
+    if(NOT EXISTS "${resolved_include_dir}/ws2tcp_local_ffi.h")
+        message(FATAL_ERROR
+            "ws2tcp-local-ffi ${WS2TCP_LOCAL_FFI_CRATE_VERSION} was fetched, but its C header "
+            "was not found at ${resolved_include_dir}/ws2tcp_local_ffi.h")
+    endif()
+
+    set("${out_source_dir}" "${resolved_source_dir}" PARENT_SCOPE)
+    set("${out_include_dir}" "${resolved_include_dir}" PARENT_SCOPE)
+endfunction()
+
+if(NOT WS2TCP_LOCAL_FFI_LIBRARY)
+    if(NOT WS2TCP_LOCAL_FFI_AUTO_BUILD)
+        message(FATAL_ERROR "Set WS2TCP_LOCAL_FFI_LIBRARY or enable WS2TCP_LOCAL_FFI_AUTO_BUILD")
+    endif()
+
+    find_program(CARGO_EXECUTABLE cargo REQUIRED)
+
+    if(NOT EXISTS "${WS2TCP_LOCAL_FFI_SOURCE_DIR}/Cargo.toml")
+        message(STATUS
+            "ws2tcp-local-ffi was not found at ${WS2TCP_LOCAL_FFI_SOURCE_DIR}; "
+            "fetching ${WS2TCP_LOCAL_FFI_CRATE_VERSION} from crates.io")
+        ws2tcp_local_ffi_resolve_cratesio(
+            WS2TCP_LOCAL_FFI_RESOLVED_SOURCE_DIR
+            WS2TCP_LOCAL_FFI_RESOLVED_INCLUDE_DIR)
+        set(WS2TCP_LOCAL_FFI_SOURCE_DIR
+            "${WS2TCP_LOCAL_FFI_RESOLVED_SOURCE_DIR}"
+            CACHE PATH "Path to the ws2tcp-local-ffi Rust crate" FORCE)
+        set(WS2TCP_LOCAL_FFI_INCLUDE_DIR
+            "${WS2TCP_LOCAL_FFI_RESOLVED_INCLUDE_DIR}"
+            CACHE PATH "Path to ws2tcp-local FFI headers" FORCE)
+        set(WS2TCP_LOCAL_FFI_TARGET_DIR
+            "${CMAKE_BINARY_DIR}/_deps/ws2tcp-local-ffi-target"
+            CACHE PATH "Cargo target directory for ws2tcp-local-ffi auto-build artifacts" FORCE)
+    elseif(NOT EXISTS "${WS2TCP_LOCAL_FFI_INCLUDE_DIR}/ws2tcp_local_ffi.h" AND
+            EXISTS "${WS2TCP_LOCAL_FFI_SOURCE_DIR}/include/ws2tcp_local_ffi.h")
+        set(WS2TCP_LOCAL_FFI_INCLUDE_DIR
+            "${WS2TCP_LOCAL_FFI_SOURCE_DIR}/include"
+            CACHE PATH "Path to ws2tcp-local FFI headers" FORCE)
+    endif()
+
+    if(NOT EXISTS "${WS2TCP_LOCAL_FFI_INCLUDE_DIR}/ws2tcp_local_ffi.h")
+        message(FATAL_ERROR
+            "ws2tcp-local FFI header was not found. Set WS2TCP_LOCAL_FFI_INCLUDE_DIR.")
+    endif()
+
+    set(WS2TCP_LOCAL_FFI_CARGO_ENV
+        "--unset=http_proxy"
+        "--unset=https_proxy"
+        "--unset=all_proxy"
+        "--unset=HTTP_PROXY"
+        "--unset=HTTPS_PROXY"
+        "--unset=ALL_PROXY")
+    if(WS2TCP_LOCAL_FFI_TARGET_DIR)
+        list(APPEND WS2TCP_LOCAL_FFI_CARGO_ENV
+            "CARGO_TARGET_DIR=${WS2TCP_LOCAL_FFI_TARGET_DIR}")
+    endif()
+
+    add_custom_target(ws2tcp_local_ffi_cargo_build
+        COMMAND
+            "${CMAKE_COMMAND}" -E env
+                ${WS2TCP_LOCAL_FFI_CARGO_ENV}
+                "${CARGO_EXECUTABLE}" build
+                "$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:--release>"
+        WORKING_DIRECTORY "${WS2TCP_LOCAL_FFI_SOURCE_DIR}"
+        COMMENT "Building ws2tcp-local-ffi with Cargo")
+
+    ws2tcp_local_ffi_artifact(debug WS2TCP_LOCAL_FFI_DEBUG_LIBRARY)
+    ws2tcp_local_ffi_artifact(release WS2TCP_LOCAL_FFI_RELEASE_LIBRARY)
+
+    if(CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+        set(WS2TCP_LOCAL_FFI_LIBRARY "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}")
+    else()
+        set(WS2TCP_LOCAL_FFI_LIBRARY "${WS2TCP_LOCAL_FFI_DEBUG_LIBRARY}")
+    endif()
+endif()
+
+add_library(ws2tcp_local_ffi STATIC IMPORTED)
+set_target_properties(ws2tcp_local_ffi PROPERTIES
+    IMPORTED_LOCATION "${WS2TCP_LOCAL_FFI_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${WS2TCP_LOCAL_FFI_INCLUDE_DIR}")
+
+if(WIN32)
+    set_property(TARGET ws2tcp_local_ffi PROPERTY INTERFACE_LINK_LIBRARIES
+        bcrypt
+        advapi32
+        kernel32
+        ntdll
+        userenv
+        ws2_32
+        dbghelp)
+endif()
+
+if(TARGET ws2tcp_local_ffi_cargo_build)
+    set_target_properties(ws2tcp_local_ffi PROPERTIES
+        IMPORTED_CONFIGURATIONS "DEBUG;RELEASE;RELWITHDEBINFO;MINSIZEREL"
+        IMPORTED_LOCATION_DEBUG "${WS2TCP_LOCAL_FFI_DEBUG_LIBRARY}"
+        IMPORTED_LOCATION_RELEASE "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}"
+        IMPORTED_LOCATION_RELWITHDEBINFO "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}"
+        IMPORTED_LOCATION_MINSIZEREL "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}")
+endif()
+
+set(WS2TCP_LOCAL_GUI_SOURCES
+    src/main.cpp
+    src/MainWindow.cpp
+    src/MainWindow.h
+    src/SystemProxy.h
+    src/UpdateDownloadDialog.cpp
+    src/UpdateDownloadDialog.h
+    src/resources.qrc)
+
+if(WIN32)
+    list(APPEND WS2TCP_LOCAL_GUI_SOURCES
+        src/WindowsSystemProxy.cpp
+        src/WindowsSystemProxy.h
+        src/WslConfig.cpp
+        src/WslConfig.h
+        src/resources/app.rc)
+endif()
+
+if(APPLE)
+    set(WS2TCP_LOCAL_MACOS_ICON
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/app-icon.icns")
+    set_source_files_properties("${WS2TCP_LOCAL_MACOS_ICON}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources")
+    list(APPEND WS2TCP_LOCAL_GUI_SOURCES
+        "${WS2TCP_LOCAL_MACOS_ICON}"
+        src/MacPrivilegedHelperClient.h
+        src/MacPrivilegedHelperClient.mm
+        src/MacSystemProxy.cpp
+        src/MacSystemProxy.h)
+endif()
+
+add_executable(ws2tcp-local-gui
+    ${WS2TCP_LOCAL_GUI_SOURCES})
+
+target_compile_definitions(ws2tcp-local-gui PRIVATE
+    WS2TCP_LOCAL_VERSION="${PROJECT_VERSION}")
+
+qt_add_translations(ws2tcp-local-gui
+    TS_FILES translations/ws2tcp-local-gui_zh_CN.ts
+    RESOURCE_PREFIX "/i18n")
+
+if(APPLE)
+    set(WS2TCP_MACOS_SIGNING_IDENTITY "-" CACHE STRING
+        "Developer ID Application identity, or '-' for an ad-hoc signature")
+    find_library(SYSTEM_CONFIGURATION_FRAMEWORK SystemConfiguration REQUIRED)
+    find_library(SECURITY_FRAMEWORK Security REQUIRED)
+    find_library(CORE_FOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+    find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+    find_library(SERVICE_MANAGEMENT_FRAMEWORK ServiceManagement REQUIRED)
+
+    add_executable(ws2tcp-proxy-helper helper/MacProxyHelper.cpp)
+    set_source_files_properties(helper/MacProxyHelper.cpp PROPERTIES
+        LANGUAGE OBJCXX)
+    target_link_libraries(ws2tcp-proxy-helper PRIVATE
+        "${SYSTEM_CONFIGURATION_FRAMEWORK}"
+        "${CORE_FOUNDATION_FRAMEWORK}")
+
+    set_target_properties(ws2tcp-local-gui PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.uglykitty.ws2tcp-local"
+        MACOSX_BUNDLE_BUNDLE_NAME "ws2tcp-local"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_ICON_FILE "app-icon.icns"
+        OUTPUT_NAME "ws2tcp-local")
+    target_compile_definitions(ws2tcp-local-gui PRIVATE
+        WS2TCP_SYSTEM_PROXY_AVAILABLE=1)
+    target_link_libraries(ws2tcp-local-gui PRIVATE
+        "${SYSTEM_CONFIGURATION_FRAMEWORK}"
+        "${SECURITY_FRAMEWORK}"
+        "${FOUNDATION_FRAMEWORK}"
+        "${SERVICE_MANAGEMENT_FRAMEWORK}")
+    add_dependencies(ws2tcp-local-gui ws2tcp-proxy-helper)
+    add_custom_command(TARGET ws2tcp-local-gui POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>/Contents/Library/HelperTools"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>/Contents/Library/LaunchDaemons"
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "$<TARGET_FILE:ws2tcp-proxy-helper>"
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>/Contents/Library/HelperTools/ws2tcp-proxy-helper"
+        COMMAND "${CMAKE_COMMAND}" -E copy
+            "${CMAKE_CURRENT_SOURCE_DIR}/helper/com.uglykitty.ws2tcp-local.proxy-helper.plist"
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>/Contents/Library/LaunchDaemons/com.uglykitty.ws2tcp-local.proxy-helper.plist"
+        COMMAND /usr/bin/codesign --force
+            --sign "${WS2TCP_MACOS_SIGNING_IDENTITY}"
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>/Contents/Library/HelperTools/ws2tcp-proxy-helper"
+        COMMAND /usr/bin/codesign --force
+            --sign "${WS2TCP_MACOS_SIGNING_IDENTITY}"
+            "$<TARGET_BUNDLE_DIR:ws2tcp-local-gui>"
+        VERBATIM)
+endif()
+
+if(APPLE)
+    set(WS2TCP_MACOS_DEPLOY_OPTIONS)
+    if(NOT WS2TCP_MACOS_SIGNING_IDENTITY STREQUAL "-")
+        list(APPEND WS2TCP_MACOS_DEPLOY_OPTIONS
+            "-sign-for-notarization=${WS2TCP_MACOS_SIGNING_IDENTITY}")
+    endif()
+    qt_generate_deploy_app_script(
+        TARGET ws2tcp-local-gui
+        OUTPUT_SCRIPT WS2TCP_LOCAL_GUI_MACOS_DEPLOY_SCRIPT
+        NO_PLUGINS
+        NO_TRANSLATIONS
+        DEPLOY_TOOL_OPTIONS ${WS2TCP_MACOS_DEPLOY_OPTIONS})
+    configure_file(
+        cmake/SignMacOS.cmake.in
+        "${CMAKE_CURRENT_BINARY_DIR}/SignMacOS.cmake"
+        @ONLY)
+endif()
+
+if(WIN32)
+    target_compile_definitions(ws2tcp-local-gui PRIVATE
+        WS2TCP_SYSTEM_PROXY_AVAILABLE=1)
+    target_link_libraries(ws2tcp-local-gui PRIVATE wininet shell32)
+    set_target_properties(ws2tcp-local-gui PROPERTIES
+        WIN32_EXECUTABLE "$<NOT:$<CONFIG:Debug>>")
+endif()
+
+target_link_libraries(ws2tcp-local-gui PRIVATE
+    Qt6::Network
+    Qt6::Widgets
+    ws2tcp_local_ffi)
+
+if(TARGET ws2tcp_local_ffi_cargo_build)
+    add_dependencies(ws2tcp-local-gui ws2tcp_local_ffi_cargo_build)
+endif()
+
+add_dependencies(ws2tcp-local-gui ws2tcp-local)
+
+if(WIN32)
+    qt_generate_deploy_app_script(
+        TARGET ws2tcp-local-gui
+        OUTPUT_SCRIPT WS2TCP_LOCAL_GUI_DEPLOY_SCRIPT
+        INCLUDE_PLUGINS qwindows
+        NO_TRANSLATIONS
+        NO_UNSUPPORTED_PLATFORM_ERROR)
+endif()
+
+install(TARGETS ws2tcp-local-gui
+    RUNTIME_DEPENDENCY_SET ws2tcp-local-gui-runtime-deps
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+if(NOT APPLE)
+    install(PROGRAMS "$<TARGET_FILE:ws2tcp-local>"
+        DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+    if(MSVC)
+        install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+            DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    endif()
+
+    install(FILES data/ws2tcp-local-gui.desktop
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+
+    install(FILES src/resources/app-icon.png
+        RENAME ws2tcp-local-gui.png
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps")
+
+    install(RUNTIME_DEPENDENCY_SET ws2tcp-local-gui-runtime-deps
+        DIRECTORIES
+            "$<TARGET_FILE_DIR:Qt6::Core>"
+            "$<TARGET_FILE_DIR:Qt6::Gui>"
+            "$<TARGET_FILE_DIR:Qt6::Widgets>"
+        PRE_EXCLUDE_REGEXES
+            "api-ms-"
+            "ext-ms-"
+        POST_EXCLUDE_REGEXES
+            ".*[\\\\/]system32[\\\\/].*"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+endif()
+
+if(APPLE)
+    install(SCRIPT "${WS2TCP_LOCAL_GUI_MACOS_DEPLOY_SCRIPT}")
+    get_target_property(QT_COCOA_PLUGIN
+        Qt6::QCocoaIntegrationPlugin IMPORTED_LOCATION)
+    file(REAL_PATH "${QT_COCOA_PLUGIN}" QT_COCOA_PLUGIN_REAL_PATH)
+    install(FILES "${QT_COCOA_PLUGIN_REAL_PATH}"
+        DESTINATION "ws2tcp-local.app/Contents/PlugIns/platforms")
+    get_target_property(QT_MAC_STYLE_PLUGIN
+        Qt6::QMacStylePlugin IMPORTED_LOCATION)
+    file(REAL_PATH "${QT_MAC_STYLE_PLUGIN}" QT_MAC_STYLE_PLUGIN_REAL_PATH)
+    install(FILES "${QT_MAC_STYLE_PLUGIN_REAL_PATH}"
+        DESTINATION "ws2tcp-local.app/Contents/PlugIns/styles")
+    install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/SignMacOS.cmake")
+endif()
+
+if(WIN32)
+    install(CODE "
+if(IS_ABSOLUTE \"\${CMAKE_INSTALL_PREFIX}\")
+    set(QT_DEPLOY_PREFIX \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
+else()
+    get_filename_component(QT_DEPLOY_PREFIX \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\" ABSOLUTE)
+endif()
+include(\"${WS2TCP_LOCAL_GUI_DEPLOY_SCRIPT}\")
+")
+endif()
+
+if(WIN32)
+    set(CPACK_GENERATOR "NSIS")
+    set(CPACK_PACKAGE_NAME "ws2tcp-local")
+    set(CPACK_PACKAGE_VENDOR "ws2tcp-local")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+        "Local WebSocket-to-TCP proxy")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY
+        "ws2tcp-local")
+    set(CPACK_PACKAGE_EXECUTABLES
+        "ws2tcp-local-gui" "ws2tcp-local")
+    set(CPACK_CREATE_DESKTOP_LINKS
+        "ws2tcp-local-gui")
+    set(CPACK_RESOURCE_FILE_LICENSE
+        "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
+    set(CPACK_NSIS_MUI_ICON
+        "${CMAKE_CURRENT_LIST_DIR}/src/resources/app-icon.ico")
+    set(CPACK_NSIS_MUI_UNIICON
+        "${CMAKE_CURRENT_LIST_DIR}/src/resources/app-icon.ico")
+    set(CPACK_NSIS_DISPLAY_NAME
+        "ws2tcp-local")
+    set(CPACK_NSIS_PACKAGE_NAME
+        "ws2tcp-local")
+    set(CPACK_NSIS_INSTALLED_ICON_NAME
+        "${CMAKE_INSTALL_BINDIR}\\\\ws2tcp-local-gui.exe")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH ON)
+    set(CPACK_PROJECT_CONFIG_FILE
+        "${CMAKE_CURRENT_LIST_DIR}/cmake/CPackOptions.cmake")
+
+    include(CPack)
+endif()
+
+if(APPLE)
+    set(CPACK_GENERATOR "DragNDrop")
+    set(CPACK_PACKAGE_NAME "ws2tcp-local")
+    set(CPACK_PACKAGE_VENDOR "ws2tcp-local")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+        "Local WebSocket-to-TCP proxy")
+    set(CPACK_PACKAGE_FILE_NAME
+        "ws2tcp-local-${PROJECT_VERSION}-macos-${CMAKE_SYSTEM_PROCESSOR}")
+    set(CPACK_DMG_VOLUME_NAME "ws2tcp-local ${PROJECT_VERSION}")
+    set(CPACK_DMG_FORMAT "UDZO")
+    set(CPACK_RESOURCE_FILE_LICENSE
+        "${CMAKE_CURRENT_LIST_DIR}/LICENSE")
+
+    include(CPack)
+endif()

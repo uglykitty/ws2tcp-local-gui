@@ -1,0 +1,350 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out Qt GUI
+        uses: actions/checkout@v6
+        with:
+          path: ws2tcp-local-gui
+
+      - name: Check out CLI
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local
+          path: ws2tcp-local
+
+      - name: Check out core library
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local-core
+          path: ws2tcp-local-core
+
+      - name: Check out FFI library
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local-ffi
+          path: ws2tcp-local-ffi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.3
+          arch: win64_msvc2022_64
+          cache: true
+
+      - name: Configure
+        run: cmake -S ws2tcp-local-gui -B build -A x64
+
+      - name: Build installer
+        run: cmake --build build --config Release --target package --parallel
+
+      - name: Verify bundled MSVC runtime
+        shell: pwsh
+        run: |
+          cmake --install build --config Release --prefix package-test
+          @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') | ForEach-Object {
+            $path = Join-Path 'package-test/bin' $_
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Missing required MSVC runtime DLL: $path"
+            }
+          }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: ws2tcp-local-windows-x64
+          path: build/ws2tcp-local-*-win64.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS arm64 signed and notarized
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+    steps:
+      - name: Check required signing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            MACOS_CERTIFICATE_P12 \
+            MACOS_CERTIFICATE_PASSWORD \
+            MACOS_SIGNING_IDENTITY \
+            APPLE_ID \
+            APPLE_APP_PASSWORD \
+            APPLE_TEAM_ID
+          do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required GitHub secret: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Check out Qt GUI
+        uses: actions/checkout@v6
+        with:
+          path: ws2tcp-local-gui
+
+      - name: Check out CLI
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local
+          path: ws2tcp-local
+
+      - name: Check out core library
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local-core
+          path: ws2tcp-local-core
+
+      - name: Check out FFI library
+        uses: actions/checkout@v6
+        with:
+          repository: uglykitty/ws2tcp-local-ffi
+          path: ws2tcp-local-ffi
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.10.3
+          arch: clang_64
+          cache: true
+
+      - name: Import Developer ID certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          keychain="$RUNNER_TEMP/ws2tcp-signing.keychain-db"
+
+          printf '%s' "$MACOS_CERTIFICATE_P12" | base64 -D > "$certificate"
+          security create-keychain -p "$RUNNER_TEMP" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$RUNNER_TEMP" "$keychain"
+          security import "$certificate" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -f pkcs12 \
+            -k "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$RUNNER_TEMP" \
+            "$keychain"
+
+      - name: Configure
+        shell: bash
+        run: >-
+          cmake
+          -S ws2tcp-local-gui
+          -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DWS2TCP_MACOS_SIGNING_IDENTITY="$MACOS_SIGNING_IDENTITY"
+
+      - name: Build signed DMG
+        run: cmake --build build --target package --parallel
+
+      - name: Sign, notarize, and staple DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=(build/ws2tcp-local-*-macos-arm64.dmg)
+          if [[ ${#images[@]} -ne 1 ]]; then
+            echo "Expected exactly one DMG, found ${#images[@]}" >&2
+            exit 1
+          fi
+
+          codesign --force --timestamp \
+            --sign "$MACOS_SIGNING_IDENTITY" "${images[0]}"
+          xcrun notarytool submit "${images[0]}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "${images[0]}"
+          xcrun stapler validate "${images[0]}"
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v7
+        with:
+          name: ws2tcp-local-macos-arm64
+          path: build/ws2tcp-local-*-macos-arm64.dmg
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs:
+      - windows
+      - macos
+    if: ${{ !cancelled() && needs.windows.result == 'success' }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: -vv --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MACOS_JOB_RESULT: ${{ needs.macos.result }}
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find dist -maxdepth 1 -type f \
+            \( -name '*.exe' -o -name '*.dmg' \) -print | sort)
+          if [[ ! " ${packages[*]} " == *".exe "* ]]; then
+            echo "Expected at least the Windows installer" >&2
+            find dist -maxdepth 2 -type f -print >&2
+            exit 1
+          fi
+          if [[ "$MACOS_JOB_RESULT" != "success" ]]; then
+            echo "::warning::macOS job did not succeed ($MACOS_JOB_RESULT); publishing Windows installer only"
+          fi
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${packages[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${packages[@]}" \
+              --verify-tag \
+              --notes-file CHANGES.md \
+              --title "$GITHUB_REF_NAME"
+          fi
+
+  mirror-self-hosted:
+    name: Mirror to self-hosted update server
+    runs-on: ubuntu-latest
+    needs:
+      - windows
+      - macos
+      - publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Build release layout and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          shopt -s nullglob
+
+          mkdir -p "upload/${version}"
+
+          exe=(dist/*-win64.exe)
+          if [[ ${#exe[@]} -ne 1 ]]; then
+            echo "Expected exactly one Windows installer, found ${#exe[@]}" >&2
+            exit 1
+          fi
+          cp "${exe[0]}" "upload/${version}/"
+          windows_name="$(basename "${exe[0]}")"
+
+          macos_name=""
+          dmg=(dist/*-macos-arm64.dmg)
+          if [[ ${#dmg[@]} -eq 1 ]]; then
+            cp "${dmg[0]}" "upload/${version}/"
+            macos_name="$(basename "${dmg[0]}")"
+          fi
+
+          base_url="https://wangguofang.net/ws2tcp-local/releases/${version}"
+          macos_url="null"
+          if [[ -n "$macos_name" ]]; then
+            macos_url="\"${base_url}/${macos_name}\""
+          fi
+
+          cat > upload/latest.json <<JSON
+          {
+            "version": "${version}",
+            "notes_url": "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}",
+            "windows_url": "${base_url}/${windows_name}",
+            "macos_url": ${macos_url}
+          }
+          JSON
+          cat upload/latest.json
+
+      - name: Configure deploy SSH key
+        shell: bash
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.WS2TCP_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/ws2tcp_deploy_key
+          chmod 600 ~/.ssh/ws2tcp_deploy_key
+          cat >> ~/.ssh/known_hosts <<'EOF'
+          wangguofang.net ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOjEuPrVY4i/ov3/Dzgjg+1JiSFG2m397mhzKtPo7efh
+          EOF
+
+      - name: Upload version folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          rsync -av \
+            -e "ssh -i ~/.ssh/ws2tcp_deploy_key -o StrictHostKeyChecking=yes" \
+            "upload/${version}/" \
+            "deploy-ws2tcp@wangguofang.net:releases/${version}/"
+
+      - name: Publish latest.json
+        run: >-
+          rsync -av
+          -e "ssh -i ~/.ssh/ws2tcp_deploy_key -o StrictHostKeyChecking=yes"
+          upload/latest.json
+          deploy-ws2tcp@wangguofang.net:releases/latest.json

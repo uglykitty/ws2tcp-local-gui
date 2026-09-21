@@ -5,6 +5,12 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.4.0] - 2026-09-21
+
+### 🚀 Features
+
+- *(rules)* Edit, import and export custom rules in the app
+
 ## [0.3.1] - 2026-09-21
 
 ### 🚀 Features

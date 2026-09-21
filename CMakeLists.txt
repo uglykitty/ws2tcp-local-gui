@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(ws2tcp-local-gui VERSION 0.3.1 LANGUAGES CXX)
+project(ws2tcp-local-gui VERSION 0.4.0 LANGUAGES CXX)
 
 if(APPLE)
     enable_language(OBJCXX)

@@ -5,6 +5,12 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.3.0] - 2026-09-21
+
+### 🚀 Features
+
+- *(settings)* Connect to the gateway through an upstream proxy
+
 ## [0.2.2] - 2026-09-21
 
 ### 🐛 Bug Fixes

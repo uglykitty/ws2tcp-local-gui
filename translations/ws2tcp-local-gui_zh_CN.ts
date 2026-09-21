@@ -506,6 +506,44 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <source>Update checks at startup are turned off. To turn them back on, open Settings and check &quot;Check for updates on startup&quot;. You can still check manually from Help &gt; Check for Updates.</source>
         <translation>启动时的更新检查已关闭。如需重新开启,请打开设置并勾选“启动时检查更新”。您仍可通过“帮助 &gt; 检查更新”手动检查。</translation>
     </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL has been installed successfully.
+
+Windows must be restarted before WSL can be used. Restart now or later?
+
+If you restart now, save your work in other applications first.</source>
+        <translation>WSL 已安装成功。
+
+需要重启 Windows 后才能使用 WSL。请选择立即重启还是稍后重启。
+
+如果立即重启,请先保存其他应用程序中的工作。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Restart now</source>
+        <translation>立即重启</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Restart later</source>
+        <translation>稍后重启</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: restart Windows later to finish setup.</source>
+        <translation>安装 WSL:请稍后重启 Windows 以完成设置。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: restarting Windows...</source>
+        <translation>安装 WSL:正在重启 Windows...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: failed to restart Windows. Please restart it manually.</source>
+        <translation>安装 WSL:重启 Windows 失败,请手动重启。</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>

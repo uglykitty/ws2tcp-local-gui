@@ -1525,6 +1525,42 @@ void MainWindow::applyMirroredNetworking() {
       "ui/suppress_wsl_restart_notice", &suppressWslRestartNotice_);
 }
 
+void MainWindow::promptRestartAfterWslInstall() {
+  // A fresh WSL install only takes effect after Windows itself restarts, so
+  // this is deliberately not suppressible like the other restart notices.
+  QMessageBox messageBox(this);
+  messageBox.setIcon(QMessageBox::Question);
+  messageBox.setWindowTitle(tr("ws2tcp-local"));
+  messageBox.setText(
+      tr("WSL has been installed successfully.\n\n"
+         "Windows must be restarted before WSL can be used. Restart now or "
+         "later?\n\n"
+         "If you restart now, save your work in other applications first."));
+  auto *restartNowButton =
+      messageBox.addButton(tr("Restart now"), QMessageBox::AcceptRole);
+  auto *restartLaterButton =
+      messageBox.addButton(tr("Restart later"), QMessageBox::RejectRole);
+  messageBox.setDefaultButton(restartLaterButton);
+  messageBox.setEscapeButton(restartLaterButton);
+  messageBox.exec();
+
+  if (messageBox.clickedButton() != restartNowButton) {
+    logMessage(tr("Install WSL: restart Windows later to finish setup."));
+    return;
+  }
+
+  logMessage(tr("Install WSL: restarting Windows..."));
+  if (!QProcess::startDetached(QStringLiteral("shutdown.exe"),
+                               {QStringLiteral("/r"), QStringLiteral("/t"),
+                                QStringLiteral("0")})) {
+    const QString message =
+        tr("Install WSL: failed to restart Windows. Please restart it "
+           "manually.");
+    logMessage(message);
+    showError(message);
+  }
+}
+
 void MainWindow::maybePromptWslMirroredNetworking() {
   if (suppressWslMirroredPrompt_) {
     return;
@@ -1737,10 +1773,11 @@ void MainWindow::installWsl() {
     watcher->deleteLater();
     CloseHandle(processHandle);
     wslMenu_->menuAction()->setEnabled(true);
-    if (exitCode == 0) {
+    // 3010 is ERROR_SUCCESS_REBOOT_REQUIRED: the install worked but
+    // Windows has to restart first, which is the expected outcome here.
+    if (exitCode == 0 || exitCode == 3010) {
       logMessage(tr("Install WSL: done."));
-      showInfo(tr("Install WSL: done."));
-      applyMirroredNetworking();
+      promptRestartAfterWslInstall();
     } else {
       const QString message =
           tr("Install WSL: failed (exit code %1). Check the console "

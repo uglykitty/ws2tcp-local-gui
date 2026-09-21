@@ -83,6 +83,7 @@ class MainWindow final : public QMainWindow {
   void showEnvProxyRestartNotice();
   void maybePromptWslMirroredNetworking();
   void applyMirroredNetworking();
+  void promptRestartAfterWslInstall();
   bool isWslUsable();
   void showWslNotReadyMessage();
   bool confirmQuitDuringWslOperation();

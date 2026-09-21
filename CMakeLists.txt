@@ -252,6 +252,8 @@ endif()
 
 set(WS2TCP_LOCAL_GUI_SOURCES
     src/main.cpp
+    src/CustomRules.cpp
+    src/CustomRules.h
     src/MainWindow.cpp
     src/MainWindow.h
     src/SystemProxy.h

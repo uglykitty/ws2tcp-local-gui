@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include "CustomRules.h"
 #include "UpdateDownloadDialog.h"
 #include "UpstreamProxy.h"
 
@@ -11,10 +12,12 @@
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFont>
+#include <QFontDatabase>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -30,10 +33,12 @@
 #include <QPainterPath>
 #include <QPen>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QScrollBar>
+#include <QStandardPaths>
 #include <QStyle>
 #include <QStatusBar>
 #include <QToolBar>
@@ -415,16 +420,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   passwordLayout->setContentsMargins(0, 0, 0, 0);
   passwordLayout->addWidget(passwordEdit_);
   passwordLayout->addWidget(passwordVisibilityButton_);
-  customRulesEdit_ = new QLineEdit(this);
-  customRulesBrowseButton_ = new QToolButton(this);
-  customRulesBrowseButton_->setText(tr("Browse..."));
-  customRulesBrowseButton_->setToolTip(tr("Select custom rules file"));
+  customRulesSummary_ = new QLabel(this);
+  customRulesEditButton_ = new QToolButton(this);
+  customRulesEditButton_->setText(tr("Edit..."));
+  customRulesEditButton_->setToolTip(
+      tr("Edit, import or export the custom rules"));
 
   auto *customRulesRow = new QWidget(this);
   auto *customRulesLayout = new QHBoxLayout(customRulesRow);
   customRulesLayout->setContentsMargins(0, 0, 0, 0);
-  customRulesLayout->addWidget(customRulesEdit_);
-  customRulesLayout->addWidget(customRulesBrowseButton_);
+  customRulesLayout->addWidget(customRulesSummary_, 1);
+  customRulesLayout->addWidget(customRulesEditButton_);
 
   proxyModeCombo_ = new QComboBox(this);
   proxyModeCombo_->addItem("global");
@@ -581,18 +587,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
             passwordVisibilityButton_->setToolTip(
                 visible ? tr("Hide password") : tr("Show password"));
           });
-  connect(customRulesBrowseButton_, &QToolButton::clicked, this, [this]() {
-    QString initialPath = customRulesEdit_->text().trimmed();
-    if (!initialPath.isEmpty() && QFileInfo(initialPath).isFile()) {
-      initialPath = QFileInfo(initialPath).absolutePath();
-    }
-    const QString filePath = QFileDialog::getOpenFileName(
-        this, tr("Select custom rules file"), initialPath,
-        tr("All files (*)"));
-    if (!filePath.isEmpty()) {
-      customRulesEdit_->setText(filePath);
-    }
-  });
+  connect(customRulesEditButton_, &QToolButton::clicked, this,
+          &MainWindow::showCustomRulesDialog);
   const int logRc =
       ws2tcp_set_log_callback(&MainWindow::handleRustLog, this,
                               "ws2tcp_local=info,ws2tcp_local_ffi=info");
@@ -677,6 +673,7 @@ bool MainWindow::clearUserSettingsAndQuit() {
     showError(tr("Unable to clear user settings"));
     return false;
   }
+  QFile::remove(customRulesFilePath());
 
   userSettingsCleared_ = true;
   allowClose_ = true;
@@ -694,7 +691,14 @@ void MainWindow::startProxy() {
     return;
   }
 
-  const QByteArray config = buildConfigJson();
+  QString customRulesPath;
+  QString customRulesError;
+  if (!writeCustomRulesFile(&customRulesPath, &customRulesError)) {
+    showError(tr("Unable to save the custom rules: %1").arg(customRulesError));
+    return;
+  }
+
+  const QByteArray config = buildConfigJson(customRulesPath);
   const int rc = ws2tcp_start(handle_, config.constData());
   if (rc == WS2TCP_OK) {
     // The proxy starts asynchronously and may already have stopped again (for
@@ -967,6 +971,193 @@ void MainWindow::showSettingsDialog() {
   }
 }
 
+namespace {
+
+// The largest rules file the import accepts, far more than any real list.
+constexpr qint64 kMaxRulesImportBytes = 4 * 1024 * 1024;
+
+QString domainCountText(int count) {
+  return QCoreApplication::translate("MainWindow", "%n domain(s)", nullptr,
+                                     count);
+}
+
+}  // namespace
+
+void MainWindow::updateCustomRulesSummary() {
+  const int count = CustomRules::domainCount(customRules_);
+  customRulesSummary_->setText(count == 0 ? tr("None") : domainCountText(count));
+}
+
+QString MainWindow::customRulesFilePath() {
+  return QDir(QStandardPaths::writableLocation(
+                  QStandardPaths::AppLocalDataLocation))
+      .filePath(QStringLiteral("custom-domain-rules.txt"));
+}
+
+bool MainWindow::writeCustomRulesFile(QString *path, QString *error) const {
+  path->clear();
+  const QString filePath = customRulesFilePath();
+  if (CustomRules::domainCount(customRules_) == 0) {
+    QFile::remove(filePath);
+    return true;
+  }
+
+  if (!QDir().mkpath(QFileInfo(filePath).absolutePath())) {
+    *error = tr("Unable to create %1").arg(QFileInfo(filePath).absolutePath());
+    return false;
+  }
+  QSaveFile file(filePath);
+  if (!file.open(QIODevice::WriteOnly) ||
+      file.write(CustomRules::normalized(customRules_).toUtf8()) < 0 ||
+      !file.commit()) {
+    *error = file.errorString();
+    return false;
+  }
+  *path = filePath;
+  return true;
+}
+
+void MainWindow::showCustomRulesDialog() {
+  QDialog dialog(this);
+  dialog.setWindowTitle(tr("Custom rules"));
+  dialog.resize(560, 440);
+
+  auto *layout = new QVBoxLayout(&dialog);
+  auto *editor = new QPlainTextEdit(&dialog);
+  editor->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+  editor->setLineWrapMode(QPlainTextEdit::NoWrap);
+  // Explain the format in comments while there are no rules yet.
+  editor->setPlainText(customRules_.trimmed().isEmpty()
+                           ? CustomRules::exampleText()
+                           : customRules_);
+  layout->addWidget(editor, 1);
+
+  auto *status = new QLabel(&dialog);
+  layout->addWidget(status);
+  const auto updateStatus = [editor, status]() {
+    const QString text = editor->toPlainText();
+    QString message = domainCountText(CustomRules::domainCount(text));
+    const int ignored = CustomRules::ignoredLineCount(text);
+    if (ignored > 0) {
+      message += QStringLiteral("  |  ") +
+                 tr("%n line(s) ignored: not a domain", nullptr, ignored);
+    }
+    status->setText(message);
+  };
+  connect(editor, &QPlainTextEdit::textChanged, &dialog, updateStatus);
+  updateStatus();
+
+  auto *buttons = new QDialogButtonBox(
+      QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+  auto *importButton =
+      buttons->addButton(tr("Import..."), QDialogButtonBox::ActionRole);
+  auto *exportButton =
+      buttons->addButton(tr("Export..."), QDialogButtonBox::ActionRole);
+  layout->addWidget(buttons);
+  connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+  connect(importButton, &QPushButton::clicked, &dialog,
+          [this, &dialog, editor]() {
+    const QString filePath = QFileDialog::getOpenFileName(
+        &dialog, tr("Import custom rules"), QString(),
+        tr("Text files (*.txt);;All files (*)"));
+    if (filePath.isEmpty()) {
+      return;
+    }
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+      QMessageBox::warning(&dialog, tr("ws2tcp-local"),
+                           tr("Unable to read %1: %2")
+                               .arg(filePath, file.errorString()));
+      return;
+    }
+    if (file.size() > kMaxRulesImportBytes) {
+      QMessageBox::warning(&dialog, tr("ws2tcp-local"),
+                           tr("%1 is too large to be a rules file.")
+                               .arg(filePath));
+      return;
+    }
+    const QString incoming =
+        CustomRules::normalized(QString::fromUtf8(file.readAll()));
+    const int incomingCount = CustomRules::domainCount(incoming);
+    if (incomingCount == 0) {
+      QMessageBox::warning(&dialog, tr("ws2tcp-local"),
+                           tr("%1 contains no domains, so nothing was "
+                              "imported.").arg(filePath));
+      return;
+    }
+
+    const QString current = editor->toPlainText();
+    const int currentCount = CustomRules::domainCount(current);
+    if (currentCount == 0) {
+      // Nothing but the explanatory comments to lose.
+      editor->setPlainText(incoming);
+      return;
+    }
+
+    QMessageBox choice(QMessageBox::Question, tr("Import custom rules"),
+                       tr("The file has %1 and the current rules have %2.\n\n"
+                          "Merge keeps the current rules and adds the domains "
+                          "that are new. Replace discards the current rules.")
+                           .arg(domainCountText(incomingCount),
+                                domainCountText(currentCount)),
+                       QMessageBox::NoButton, &dialog);
+    QPushButton *mergeButton =
+        choice.addButton(tr("Merge"), QMessageBox::AcceptRole);
+    QPushButton *replaceButton =
+        choice.addButton(tr("Replace"), QMessageBox::DestructiveRole);
+    choice.addButton(QMessageBox::Cancel);
+    choice.setDefaultButton(mergeButton);
+    choice.exec();
+
+    if (choice.clickedButton() == mergeButton) {
+      int added = 0;
+      editor->setPlainText(CustomRules::merge(current, incoming, &added));
+      QMessageBox::information(
+          &dialog, tr("ws2tcp-local"),
+          tr("Added %n new domain(s).", nullptr, added));
+    } else if (choice.clickedButton() == replaceButton) {
+      editor->setPlainText(incoming);
+    }
+  });
+
+  connect(exportButton, &QPushButton::clicked, &dialog,
+          [&dialog, editor]() {
+    const QString defaultPath =
+        QDir(QStandardPaths::writableLocation(
+                 QStandardPaths::DocumentsLocation))
+            .filePath(QStringLiteral("custom-domain-rules.txt"));
+    const QString filePath = QFileDialog::getSaveFileName(
+        &dialog, tr("Export custom rules"), defaultPath,
+        tr("Text files (*.txt);;All files (*)"));
+    if (filePath.isEmpty()) {
+      return;
+    }
+    QSaveFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly) ||
+        file.write(CustomRules::normalized(editor->toPlainText()).toUtf8()) <
+            0 ||
+        !file.commit()) {
+      QMessageBox::warning(&dialog, tr("ws2tcp-local"),
+                           tr("Unable to write %1: %2")
+                               .arg(filePath, file.errorString()));
+    }
+  });
+
+  if (dialog.exec() != QDialog::Accepted) {
+    return;
+  }
+  QString text = CustomRules::normalized(editor->toPlainText());
+  // Leaving the explanation untouched means there are still no rules.
+  if (text == CustomRules::normalized(CustomRules::exampleText())) {
+    text.clear();
+  }
+  customRules_ = text;
+  updateCustomRulesSummary();
+  saveUserSettings();
+}
+
 void MainWindow::updateConfigurationInputs(bool running) {
   const bool editable = !running;
   listenEdit_->setEnabled(editable);
@@ -975,8 +1166,7 @@ void MainWindow::updateConfigurationInputs(bool running) {
   usernameEdit_->setEnabled(editable);
   passwordEdit_->setEnabled(editable);
   passwordVisibilityButton_->setEnabled(editable);
-  customRulesEdit_->setEnabled(editable);
-  customRulesBrowseButton_->setEnabled(editable);
+  customRulesEditButton_->setEnabled(editable);
 }
 
 void MainWindow::showAboutDialog() {
@@ -1277,7 +1467,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
   event->ignore();
 }
 
-QByteArray MainWindow::buildConfigJson() const {
+QByteArray MainWindow::buildConfigJson(const QString &customRulesPath) const {
   QJsonObject config;
   config["listen"] = listenEdit_->text().trimmed();
   const QString socksListen = socksListenEdit_->text().trimmed();
@@ -1302,8 +1492,8 @@ QByteArray MainWindow::buildConfigJson() const {
   if (!username.isEmpty()) {
     config["basic_auth"] = username + ":" + passwordEdit_->text();
   }
-  if (!customRulesEdit_->text().isEmpty()) {
-    config["custom_domain_rules"] = customRulesEdit_->text().trimmed();
+  if (!customRulesPath.isEmpty()) {
+    config["custom_domain_rules"] = customRulesPath;
   }
 
   return QJsonDocument(config).toJson(QJsonDocument::Compact);
@@ -1435,7 +1625,25 @@ void MainWindow::loadUserSettings() {
       usernameEdit_->setText(basicAuth);
     }
   }
-  customRulesEdit_->setText(settings.value("proxy/custom_rules").toString());
+  if (settings.contains("proxy/custom_rules_text")) {
+    customRules_ = settings.value("proxy/custom_rules_text").toString();
+  } else {
+    // Migrate the former setting, the path of a rules file, by reading the
+    // file into the rules that are now kept in the settings.
+    const QString legacyPath =
+        settings.value("proxy/custom_rules").toString().trimmed();
+    if (!legacyPath.isEmpty()) {
+      QFile legacyFile(legacyPath);
+      if (legacyFile.open(QIODevice::ReadOnly)) {
+        customRules_ =
+            CustomRules::normalized(QString::fromUtf8(legacyFile.readAll()));
+      } else {
+        logMessage(tr("Unable to import the custom rules from %1: %2")
+                       .arg(legacyPath, legacyFile.errorString()));
+      }
+    }
+  }
+  updateCustomRulesSummary();
   const int bufferSize =
       settings.value("proxy/buffer_size", bufferSize_).toInt();
   if (bufferSize >= 1 && bufferSize <= 1024 * 1024) {
@@ -1510,7 +1718,8 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("proxy/username", usernameEdit_->text());
   settings.setValue("proxy/password", passwordEdit_->text());
   settings.remove("proxy/basic_auth");
-  settings.setValue("proxy/custom_rules", customRulesEdit_->text());
+  settings.setValue("proxy/custom_rules_text", customRules_);
+  settings.remove("proxy/custom_rules");
   settings.setValue("proxy/buffer_size", bufferSize_);
   settings.setValue("proxy/rule_refresh_interval_secs",
                     refreshIntervalSeconds_);

@@ -2,6 +2,33 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN" sourcelanguage="en_US">
 <context>
+    <name>CustomRules</name>
+    <message>
+        <source># Custom routing rules: these domains always go through the proxy.</source>
+        <translation># 自定义路由规则:这些域名始终走代理。</translation>
+    </message>
+    <message>
+        <source># Write one domain per line. A domain also covers its subdomains, so</source>
+        <translation># 每行写一个域名。域名同时涵盖其子域名,所以</translation>
+    </message>
+    <message>
+        <source># example.com matches www.example.com and api.example.com too.</source>
+        <translation># example.com 也会匹配 www.example.com 和 api.example.com。</translation>
+    </message>
+    <message>
+        <source># Blank lines, and anything after a # on a line, are ignored.</source>
+        <translation># 空行以及每行 # 之后的内容都会被忽略。</translation>
+    </message>
+    <message>
+        <source># IP addresses, ports and wildcards are not supported.</source>
+        <translation># 不支持 IP 地址、端口和通配符。</translation>
+    </message>
+    <message>
+        <source># Examples (delete the leading # to turn one on):</source>
+        <translation># 示例(删除开头的 # 即可启用):</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <location filename="../src/MainWindow.cpp" line="114"/>
@@ -29,22 +56,6 @@
         <location filename="../src/MainWindow.cpp" line="254"/>
         <source>Hide password</source>
         <translation>隐藏密码</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="132"/>
-        <source>Browse...</source>
-        <translation>浏览...</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="133"/>
-        <location filename="../src/MainWindow.cpp" line="262"/>
-        <source>Select custom rules file</source>
-        <translation>选择自定义规则文件</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="263"/>
-        <source>All files (*)</source>
-        <translation>所有文件 (*)</translation>
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="150"/>
@@ -567,6 +578,94 @@ If you restart now, save your work in other applications first.</source>
         <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Install WSL: failed to restart Windows. Please restart it manually.</source>
         <translation>安装 WSL:重启 Windows 失败,请手动重启。</translation>
+    </message>
+    <message>
+        <source>Edit...</source>
+        <translation>编辑...</translation>
+    </message>
+    <message>
+        <source>Edit, import or export the custom rules</source>
+        <translation>编辑、导入或导出自定义规则</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n domain(s)</source>
+        <translation><numerusform>%n 个域名</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <source>%n line(s) ignored: not a domain</source>
+        <translation><numerusform>%n 行已忽略:不是域名</numerusform></translation>
+    </message>
+    <message>
+        <source>Import...</source>
+        <translation>导入...</translation>
+    </message>
+    <message>
+        <source>Export...</source>
+        <translation>导出...</translation>
+    </message>
+    <message>
+        <source>Import custom rules</source>
+        <translation>导入自定义规则</translation>
+    </message>
+    <message>
+        <source>Export custom rules</source>
+        <translation>导出自定义规则</translation>
+    </message>
+    <message>
+        <source>Text files (*.txt);;All files (*)</source>
+        <translation>文本文件 (*.txt);;所有文件 (*)</translation>
+    </message>
+    <message>
+        <source>Unable to read %1: %2</source>
+        <translation>无法读取 %1:%2</translation>
+    </message>
+    <message>
+        <source>Unable to write %1: %2</source>
+        <translation>无法写入 %1:%2</translation>
+    </message>
+    <message>
+        <source>%1 is too large to be a rules file.</source>
+        <translation>%1 太大,不像是规则文件。</translation>
+    </message>
+    <message>
+        <source>%1 contains no domains, so nothing was imported.</source>
+        <translation>%1 中没有域名,未导入任何内容。</translation>
+    </message>
+    <message>
+        <source>The file has %1 and the current rules have %2.
+
+Merge keeps the current rules and adds the domains that are new. Replace discards the current rules.</source>
+        <translation>文件中有 %1,当前规则中有 %2。
+
+“合并”会保留当前规则并添加新的域名;“替换”会丢弃当前规则。</translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>合并</translation>
+    </message>
+    <message>
+        <source>Replace</source>
+        <translation>替换</translation>
+    </message>
+    <message numerus="yes">
+        <source>Added %n new domain(s).</source>
+        <translation><numerusform>已添加 %n 个新域名。</numerusform></translation>
+    </message>
+    <message>
+        <source>Unable to save the custom rules: %1</source>
+        <translation>无法保存自定义规则:%1</translation>
+    </message>
+    <message>
+        <source>Unable to create %1</source>
+        <translation>无法创建 %1</translation>
+    </message>
+    <message>
+        <source>Unable to import the custom rules from %1: %2</source>
+        <translation>无法从 %1 导入自定义规则:%2</translation>
     </message>
 </context>
 <context>

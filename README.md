@@ -42,6 +42,19 @@ runs, grey when it is stopped and red when it stopped with an error. The
 tooltip and the first line of the tray menu say the same in words, including
 the address it listens on.
 
+The main window's **Custom rules** row opens an editor for domains that always
+go through the proxy. Write one domain per line: it also covers its
+subdomains, blank lines and text after `#` are ignored, and IP addresses, ports
+and wildcards are not supported (the editor counts such lines as ignored). While
+there are no rules the editor shows the format and some examples as comments.
+**Import...** reads a text file in the same format: if there are already rules
+it asks whether to **Merge** (keep the current rules and add the new domains) or
+**Replace** them, and **Export...** saves the editor's content to a file. The
+rules are kept in the user's settings; the application writes them to a file in
+its local data directory each time the proxy starts, so there is no file path to
+choose. Editing is disabled while the proxy is running. A rules file path saved
+by an earlier version is read into the editor on first launch.
+
 ## Build
 
 By default CMake uses Corrosion to build the `ws2tcp-local` CLI from

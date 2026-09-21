@@ -5,6 +5,7 @@
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
 #include <QMenu>
@@ -40,6 +41,7 @@ class MainWindow final : public QMainWindow {
   void appendLog(QString message);
   void showSettingsDialog();
   void showAboutDialog();
+  void showCustomRulesDialog();
   void checkForUpdates();
   void toggleWindowVisibility();
   void quitFromTray();
@@ -60,13 +62,19 @@ class MainWindow final : public QMainWindow {
   void closeEvent(QCloseEvent *event) override;
 
  private:
-  QByteArray buildConfigJson() const;
+  QByteArray buildConfigJson(const QString &customRulesPath) const;
   void setupTrayIcon();
   void updateTrayActions();
   // Shows whether the proxy is running on the tray icon, its tooltip and the
   // first line of the tray menu.
   void updateTrayStatus();
   void updateConfigurationInputs(bool running);
+  void updateCustomRulesSummary();
+  // The file the custom rules are written to for the Rust core to read.
+  static QString customRulesFilePath();
+  // Writes the custom rules to customRulesFilePath() and returns its path in
+  // `path`, which stays empty when there are no rules to apply.
+  bool writeCustomRulesFile(QString *path, QString *error) const;
   void loadUserSettings();
   void saveUserSettings() const;
   // `startup` is true for the automatic check after launch: it stays quiet
@@ -105,8 +113,11 @@ class MainWindow final : public QMainWindow {
   QLineEdit *usernameEdit_ = nullptr;
   QLineEdit *passwordEdit_ = nullptr;
   QToolButton *passwordVisibilityButton_ = nullptr;
-  QLineEdit *customRulesEdit_ = nullptr;
-  QToolButton *customRulesBrowseButton_ = nullptr;
+  QLabel *customRulesSummary_ = nullptr;
+  QToolButton *customRulesEditButton_ = nullptr;
+  // One domain per line, edited in showCustomRulesDialog() and kept in the
+  // settings. Empty until the user has saved rules.
+  QString customRules_;
   QComboBox *proxyModeCombo_ = nullptr;
   QAction *startAction_ = nullptr;
   QAction *stopAction_ = nullptr;

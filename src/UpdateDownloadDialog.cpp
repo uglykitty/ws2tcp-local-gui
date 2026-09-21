@@ -36,8 +36,12 @@ QString formatMegabytes(qint64 bytes) {
 
 UpdateDownloadDialog::UpdateDownloadDialog(const QString &downloadUrl,
                                             const QString &version,
+                                            const QNetworkProxy &proxy,
                                             QWidget *parent)
-    : QDialog(parent), downloadUrl_(downloadUrl), version_(version) {
+    : QDialog(parent),
+      downloadUrl_(downloadUrl),
+      version_(version),
+      proxy_(proxy) {
   setWindowTitle(tr("Downloading Update"));
   setModal(true);
   resize(480, sizeHint().height());
@@ -119,6 +123,9 @@ void UpdateDownloadDialog::startDownload() {
   }
 
   manager_ = new QNetworkAccessManager(this);
+  if (proxy_.type() != QNetworkProxy::DefaultProxy) {
+    manager_->setProxy(proxy_);
+  }
   QNetworkRequest request(url);
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                         QNetworkRequest::NoLessSafeRedirectPolicy);

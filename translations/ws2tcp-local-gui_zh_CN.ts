@@ -442,8 +442,8 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>http://host:port 或 socks5h://host:port(可选)</translation>
     </message>
     <message>
-        <source>Connect to the gateway through this proxy server. Use http:// for an HTTP proxy, socks5h:// for a SOCKS5 proxy that resolves the gateway&apos;s hostname, or socks5:// to resolve it locally. Credentials can be given as user:password@host:port, with special characters percent-encoded.</source>
-        <translation>通过该代理服务器连接网关。http:// 表示 HTTP 代理,socks5h:// 表示由代理解析网关域名的 SOCKS5 代理,socks5:// 表示在本地解析域名。认证信息可写成 user:password@host:port,其中的特殊字符需要百分号编码。</translation>
+        <source>Send all outgoing connections through this proxy server: to the gateway, direct requests, rule list downloads and update checks. Use http:// for an HTTP proxy, socks5h:// for a SOCKS5 proxy that resolves hostnames, or socks5:// to resolve them locally. Credentials can be given as user:password@host:port, with special characters percent-encoded.</source>
+        <translation>所有出口连接都通过该代理服务器:访问网关、直连请求、规则列表下载和更新检查。http:// 表示 HTTP 代理,socks5h:// 表示由代理解析域名的 SOCKS5 代理,socks5:// 表示在本地解析域名。认证信息可写成 user:password@host:port,其中的特殊字符需要百分号编码。</translation>
     </message>
     <message>
         <source>Use upstream proxy</source>

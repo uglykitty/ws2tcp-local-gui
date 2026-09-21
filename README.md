@@ -25,14 +25,15 @@ and **Don't remind me again** turns the startup check off. The check can also
 be switched off or on in **Settings** with **Check for updates on startup**, and
 it can always be run manually from **Help > Check for Updates...**.
 
-To reach the gateway through another proxy server, enter its URL under
+To send all outgoing connections through another proxy server, enter its URL under
 **Settings > Upstream proxy** after ticking **Use upstream proxy**: `http://host:port`, `socks5h://host:port` (the
 proxy resolves the gateway's hostname) or `socks5://host:port` (resolved
 locally), optionally with `user:password@` credentials whose special characters
 are percent-encoded. Untick the switch to connect directly; the URL is kept.
-The tunnels, the startup gateway check and the token login all use it;
-requests that a routing rule sends direct do not, and neither do the update
-checks. Like the gateway
+With the switch on, the tunnels, the startup gateway check and the token login,
+the requests that a routing rule sends direct (which the proxy connects to for
+you), the rule list downloads and the update checks and downloads all go
+through it. Like the gateway
 password, the URL is saved in plain text in the user's settings. The
 `ws2tcp-local` CLI has the same option as `--upstream-proxy`.
 

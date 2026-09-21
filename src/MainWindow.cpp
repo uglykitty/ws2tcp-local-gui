@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include "UpdateDownloadDialog.h"
+#include "UpstreamProxy.h"
 
 #include <QByteArray>
 #include <QActionGroup>
@@ -62,24 +63,6 @@ constexpr auto kDefaultListenAddress = "127.0.0.1:3128";
 constexpr auto kUpdateManifestUrl =
     "https://wangguofang.net/ws2tcp-local/releases/latest.json";
 constexpr int kStartupUpdateCheckDelayMs = 3000;
-
-// Blank means no upstream proxy. Otherwise a http://, socks5:// or socks5h://
-// URL with a host and no path, like ws2tcp-local-core accepts.
-bool isValidUpstreamProxy(const QString &text) {
-  const QString trimmed = text.trimmed();
-  if (trimmed.isEmpty()) {
-    return true;
-  }
-  const QUrl url(trimmed, QUrl::StrictMode);
-  const QString scheme = url.scheme();
-  return url.isValid() &&
-         (scheme == QLatin1String("http") ||
-          scheme == QLatin1String("socks5") ||
-          scheme == QLatin1String("socks5h")) &&
-         !url.host().isEmpty() &&
-         (url.path().isEmpty() || url.path() == QLatin1String("/")) &&
-         !url.hasQuery() && !url.hasFragment();
-}
 
 bool isVersionNewer(const QString &remote, const QString &local) {
   const QStringList remoteParts = remote.split(QLatin1Char('.'));
@@ -865,9 +848,10 @@ void MainWindow::showSettingsDialog() {
   upstreamProxyEdit->setEnabled(!running && upstreamProxyEnabled_);
   upstreamProxyEdit->setMinimumWidth(320);
   upstreamProxyEdit->setToolTip(
-      tr("Connect to the gateway through this proxy server. Use http:// for "
-         "an HTTP proxy, socks5h:// for a SOCKS5 proxy that resolves the "
-         "gateway's hostname, or socks5:// to resolve it locally. "
+      tr("Send all outgoing connections through this proxy server: to the "
+         "gateway, direct requests, rule list downloads and update checks. "
+         "Use http:// for an HTTP proxy, socks5h:// for a SOCKS5 proxy that "
+         "resolves hostnames, or socks5:// to resolve them locally. "
          "Credentials can be given as user:password@host:port, with special "
          "characters percent-encoded."));
   form->addRow(tr("Upstream proxy"), upstreamProxyEdit);
@@ -914,7 +898,7 @@ void MainWindow::showSettingsDialog() {
     // was typed.
     const QString text = upstreamProxyEdit->text().trimmed();
     if (upstreamProxyCheck->isChecked() &&
-        (text.isEmpty() || !isValidUpstreamProxy(text))) {
+        (text.isEmpty() || !UpstreamProxy::isValid(text))) {
       QMessageBox::warning(
           &dialog, tr("ws2tcp-local"),
           tr("The upstream proxy must be a URL such as "
@@ -1024,6 +1008,9 @@ void MainWindow::runUpdateCheck(bool startup) {
       return;
     }
 
+  if (upstreamProxyEnabled_) {
+    manager->setProxy(UpstreamProxy::toNetworkProxy(upstreamProxy_));
+  }
     const QString currentVersion = QCoreApplication::applicationVersion();
     if (!isVersionNewer(remoteVersion, currentVersion)) {
       if (!startup) {
@@ -1090,7 +1077,12 @@ void MainWindow::runUpdateCheck(bool startup) {
     box.exec();
 
     if (yesButton && box.clickedButton() == yesButton) {
-      UpdateDownloadDialog downloadDialog(downloadUrl, remoteVersion, this);
+      UpdateDownloadDialog downloadDialog(
+          downloadUrl, remoteVersion,
+          upstreamProxyEnabled_
+              ? UpstreamProxy::toNetworkProxy(upstreamProxy_)
+              : QNetworkProxy(QNetworkProxy::DefaultProxy),
+          this);
       downloadDialog.exec();
       if (downloadDialog.installerLaunched()) {
         quitGracefully(false);
@@ -1411,7 +1403,7 @@ void MainWindow::loadUserSettings() {
       settings.value("ui/check_updates_on_startup", true).toBool();
   const QString upstreamProxy =
       settings.value("proxy/upstream_proxy").toString().trimmed();
-  if (isValidUpstreamProxy(upstreamProxy)) {
+  if (UpstreamProxy::isValid(upstreamProxy)) {
     upstreamProxy_ = upstreamProxy;
   }
   // Settings saved before the switch existed enable the proxy they have.

@@ -257,6 +257,8 @@ set(WS2TCP_LOCAL_GUI_SOURCES
     src/SystemProxy.h
     src/UpdateDownloadDialog.cpp
     src/UpdateDownloadDialog.h
+    src/UpstreamProxy.cpp
+    src/UpstreamProxy.h
     src/resources.qrc)
 
 if(WIN32)

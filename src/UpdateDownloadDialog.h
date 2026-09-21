@@ -2,6 +2,7 @@
 #define UPDATEDOWNLOADDIALOG_H
 
 #include <QDialog>
+#include <QNetworkProxy>
 #include <QString>
 
 class QLabel;
@@ -20,8 +21,10 @@ class UpdateDownloadDialog final : public QDialog {
   Q_OBJECT
 
  public:
+  // `proxy` is applied to the download unless it is the default proxy, which
+  // leaves the application's proxy settings in charge.
   UpdateDownloadDialog(const QString &downloadUrl, const QString &version,
-                        QWidget *parent = nullptr);
+                        const QNetworkProxy &proxy, QWidget *parent = nullptr);
   ~UpdateDownloadDialog() override;
 
   bool installerLaunched() const { return installerLaunched_; }
@@ -36,6 +39,7 @@ class UpdateDownloadDialog final : public QDialog {
   QString downloadUrl_;
   QString version_;
   QString filePath_;
+  QNetworkProxy proxy_;
   bool installerLaunched_ = false;
   bool downloadComplete_ = false;
 

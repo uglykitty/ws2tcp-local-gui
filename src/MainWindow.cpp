@@ -88,6 +88,39 @@ QIcon applicationIcon() {
   return icon;
 }
 
+enum TrayState { kTrayStopped = 0, kTrayRunning = 1, kTrayError = 2 };
+
+// The application icon with a status dot in its bottom right corner. The dot
+// has a light ring inside a dark one, so that it shows on light and dark
+// panels alike.
+QIcon statusBadgeIcon(const QIcon &base, const QColor &color) {
+  QIcon icon;
+  for (const int size : {16, 22, 24, 32, 48, 64, 128}) {
+    QPixmap pixmap = base.pixmap(size, size);
+    if (pixmap.isNull()) {
+      continue;
+    }
+    pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio,
+                           Qt::SmoothTransformation);
+
+    const double radius = size * 0.22;
+    const QPointF center(pixmap.width() - radius - size * 0.06,
+                         pixmap.height() - radius - size * 0.06);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 110));
+    painter.drawEllipse(center, radius + size * 0.07, radius + size * 0.07);
+    painter.setBrush(Qt::white);
+    painter.drawEllipse(center, radius + size * 0.04, radius + size * 0.04);
+    painter.setBrush(color);
+    painter.drawEllipse(center, radius, radius);
+    painter.end();
+    icon.addPixmap(pixmap);
+  }
+  return icon.isNull() ? base : icon;
+}
+
 QPixmap gearPixmap(int size, const QColor &color) {
   QPixmap pixmap(size, size);
   pixmap.fill(Qt::transparent);
@@ -668,6 +701,8 @@ void MainWindow::startProxy() {
     // example when the gateway check fails) before the first status refresh;
     // treat it as running so that refreshStatus() reports the failure.
     wasRunning_ = true;
+    lastStopFailed_ = false;
+    activeListen_.clear();
     saveUserSettings();
     updateConfigurationInputs(true);
     updateRuntimeStatus(tr("Starting %1").arg(listenEdit_->text().trimmed()));
@@ -695,6 +730,8 @@ void MainWindow::stopProxy() {
 
   const int rc = ws2tcp_stop(handle_);
   if (rc == WS2TCP_OK) {
+    lastStopFailed_ = false;
+    activeListen_.clear();
     saveUserSettings();
     updateConfigurationInputs(false);
     updateRuntimeStatus(tr("Stopped"));
@@ -749,6 +786,7 @@ void MainWindow::refreshStatus() {
         handle_ != nullptr ? QString::fromUtf8(ws2tcp_last_error(handle_))
                            : QString();
     if (!error.isEmpty()) {
+      lastStopFailed_ = true;
       logMessage(tr("Proxy stopped with error: %1").arg(error));
       updateRuntimeStatus(tr("Stopped with error"));
 
@@ -970,6 +1008,9 @@ void MainWindow::runUpdateCheck(bool startup) {
   updateCheckInProgress_ = true;
 
   auto *manager = new QNetworkAccessManager(this);
+  if (upstreamProxyEnabled_) {
+    manager->setProxy(UpstreamProxy::toNetworkProxy(upstreamProxy_));
+  }
   QNetworkRequest request{QUrl(kUpdateManifestUrl)};
   request.setHeader(QNetworkRequest::UserAgentHeader,
                      QStringLiteral("ws2tcp-local-gui/%1")
@@ -1008,9 +1049,6 @@ void MainWindow::runUpdateCheck(bool startup) {
       return;
     }
 
-  if (upstreamProxyEnabled_) {
-    manager->setProxy(UpstreamProxy::toNetworkProxy(upstreamProxy_));
-  }
     const QString currentVersion = QCoreApplication::applicationVersion();
     if (!isVersionNewer(remoteVersion, currentVersion)) {
       if (!startup) {
@@ -1278,6 +1316,9 @@ void MainWindow::setupTrayIcon() {
   }
 
   trayMenu_ = new QMenu(this);
+  trayStatusAction_ = trayMenu_->addAction(QString());
+  trayStatusAction_->setEnabled(false);
+  trayMenu_->addSeparator();
   showHideAction_ = trayMenu_->addAction(tr("Hide window"));
   trayMenu_->addAction(startAction_);
   trayMenu_->addAction(stopAction_);
@@ -1306,7 +1347,37 @@ void MainWindow::setupTrayIcon() {
   trayIcon_->show();
 }
 
+void MainWindow::updateTrayStatus() {
+  if (trayIcon_ == nullptr) {
+    return;
+  }
+
+  const bool running =
+      handle_ != nullptr && ws2tcp_status(handle_) == WS2TCP_STATUS_RUNNING;
+  const TrayState state =
+      running ? kTrayRunning : (lastStopFailed_ ? kTrayError : kTrayStopped);
+
+  QString text;
+  if (state == kTrayRunning) {
+    text = activeListen_.isEmpty() ? tr("Running")
+                                   : tr("Running on %1").arg(activeListen_);
+  } else {
+    text = state == kTrayError ? tr("Stopped with error") : tr("Stopped");
+  }
+  trayStatusAction_->setText(text);
+  trayIcon_->setToolTip(QStringLiteral("ws2tcp-local: %1").arg(text));
+
+  if (state != trayState_) {
+    trayState_ = state;
+    const QColor color = state == kTrayRunning ? QColor(0x2e, 0xa0, 0x43)
+                         : state == kTrayError ? QColor(0xd1, 0x24, 0x2f)
+                                               : QColor(0x8b, 0x94, 0x9e);
+    trayIcon_->setIcon(statusBadgeIcon(applicationIcon(), color));
+  }
+}
+
 void MainWindow::updateTrayActions() {
+  updateTrayStatus();
   if (showHideAction_ != nullptr) {
     showHideAction_->setText(isVisible() ? tr("Hide window")
                                          : tr("Show window"));
@@ -1483,6 +1554,7 @@ void MainWindow::showInfo(const QString &message) {
 void MainWindow::updateRuntimeStatus(const QString &message) {
   runtimeStatus_ = message;
   statusBar()->showMessage(runtimeStatus_);
+  updateTrayStatus();
 }
 
 #ifdef Q_OS_WIN
@@ -1895,6 +1967,7 @@ void MainWindow::updateRuntimeStatusFromLog(const QString &message) {
     const QString rest = message.mid(listenIndex + 7);
     const QString listen = rest.section(' ', 0, 0);
     if (!listen.isEmpty()) {
+      activeListen_ = listen;
       updateRuntimeStatus(tr("Running on %1").arg(listen));
       return;
     }

@@ -446,6 +446,10 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>所有出口连接都通过该代理服务器:访问网关、直连请求、规则列表下载和更新检查。http:// 表示 HTTP 代理,socks5h:// 表示由代理解析域名的 SOCKS5 代理,socks5:// 表示在本地解析域名。认证信息可写成 user:password@host:port,其中的特殊字符需要百分号编码。</translation>
     </message>
     <message>
+        <source>Running</source>
+        <translation>运行中</translation>
+    </message>
+    <message>
         <source>Use upstream proxy</source>
         <translation>使用上游代理</translation>
     </message>

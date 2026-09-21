@@ -37,6 +37,11 @@ through it. Like the gateway
 password, the URL is saved in plain text in the user's settings. The
 `ws2tcp-local` CLI has the same option as `--upstream-proxy`.
 
+The system tray icon shows whether the proxy is running: a green dot while it
+runs, grey when it is stopped and red when it stopped with an error. The
+tooltip and the first line of the tray menu say the same in words, including
+the address it listens on.
+
 ## Build
 
 By default CMake uses Corrosion to build the `ws2tcp-local` CLI from

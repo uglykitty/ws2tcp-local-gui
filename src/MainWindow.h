@@ -63,6 +63,9 @@ class MainWindow final : public QMainWindow {
   QByteArray buildConfigJson() const;
   void setupTrayIcon();
   void updateTrayActions();
+  // Shows whether the proxy is running on the tray icon, its tooltip and the
+  // first line of the tray menu.
+  void updateTrayStatus();
   void updateConfigurationInputs(bool running);
   void loadUserSettings();
   void saveUserSettings() const;
@@ -113,6 +116,7 @@ class MainWindow final : public QMainWindow {
   QSystemTrayIcon *trayIcon_ = nullptr;
   QMenu *trayMenu_ = nullptr;
   QAction *showHideAction_ = nullptr;
+  QAction *trayStatusAction_ = nullptr;
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
   QCheckBox *systemProxyCheck_ = nullptr;
   QAction *traySystemProxyAction_ = nullptr;
@@ -127,6 +131,13 @@ class MainWindow final : public QMainWindow {
 #endif
   QAction *quitAction_ = nullptr;
   bool wasRunning_ = false;
+  // The proxy stopped by itself with an error, and has not been started or
+  // stopped by the user since.
+  bool lastStopFailed_ = false;
+  // The state the tray icon currently shows, or -1 before it is first set.
+  int trayState_ = -1;
+  // The address the running proxy reported listening on, for the tray.
+  QString activeListen_;
   bool allowClose_ = false;
   bool userSettingsCleared_ = false;
   int bufferSize_ = 16 * 1024;

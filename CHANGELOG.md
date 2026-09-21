@@ -5,6 +5,12 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.2.1] - 2026-09-21
+
+### 🚀 Features
+
+- *(update)* Check for updates on startup and offer to upgrade at once
+
 ## [0.2.0] - 2026-09-20
 
 ### 🚀 Features

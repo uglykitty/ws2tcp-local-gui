@@ -66,6 +66,9 @@ class MainWindow final : public QMainWindow {
   void updateConfigurationInputs(bool running);
   void loadUserSettings();
   void saveUserSettings() const;
+  // `startup` is true for the automatic check after launch: it stays quiet
+  // unless a newer version with an installer for this platform exists.
+  void runUpdateCheck(bool startup);
   void appendError(const QString &prefix);
   void showError(const QString &message);
   void showGatewayCheckFailure(const QString &message);
@@ -128,6 +131,8 @@ class MainWindow final : public QMainWindow {
   int bufferSize_ = 16 * 1024;
   int refreshIntervalSeconds_ = 60;
   bool insecure_ = false;
+  bool checkUpdatesOnStartup_ = true;
+  bool updateCheckInProgress_ = false;
   // How to authenticate to the gateway: "token" (default) or "basic", the
   // compatibility method that is being phased out.
   QString authMode_ = QStringLiteral("token");

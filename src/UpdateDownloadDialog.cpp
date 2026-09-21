@@ -182,6 +182,10 @@ void UpdateDownloadDialog::startDownload() {
     statusLabel_->setText(tr("Download complete:\n%1").arg(filePath_));
     cancelButton_->setText(tr("Close"));
     runButton_->setVisible(true);
+
+    // The user already chose to update, so start the installer right away.
+    // If it cannot be launched the dialog stays open with the manual button.
+    runInstallerAndClose();
   });
 }
 

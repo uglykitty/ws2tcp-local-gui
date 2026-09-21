@@ -14,7 +14,8 @@ class QFile;
 
 // Downloads an update installer in-process while always showing the raw
 // download URL, so the user can fall back to copying it into another
-// download tool if the built-in download is slow or blocked.
+// download tool if the built-in download is slow or blocked. The installer is
+// launched as soon as the download completes.
 class UpdateDownloadDialog final : public QDialog {
   Q_OBJECT
 

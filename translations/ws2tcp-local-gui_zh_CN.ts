@@ -442,6 +442,70 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <source>Authentication</source>
         <translation>认证方式</translation>
     </message>
+    <message>
+        <source>Check for updates on startup</source>
+        <translation>启动时检查更新</translation>
+    </message>
+    <message>
+        <source>Check for &amp;Updates...</source>
+        <translation>检查更新(&amp;U)...</translation>
+    </message>
+    <message>
+        <source>Failed to check for updates: %1</source>
+        <translation>检查更新失败:%1</translation>
+    </message>
+    <message>
+        <source>Check for Updates</source>
+        <translation>检查更新</translation>
+    </message>
+    <message>
+        <source>Update server returned an unexpected response.</source>
+        <translation>更新服务器返回了意外的响应。</translation>
+    </message>
+    <message>
+        <source>You are using the latest version (%1).</source>
+        <translation>您正在使用最新版本(%1)。</translation>
+    </message>
+    <message>
+        <source>Update Available</source>
+        <translation>有可用更新</translation>
+    </message>
+    <message>
+        <source>A new version %1 is available (you have %2).</source>
+        <translation>有新版本 %1 可用(当前版本 %2)。</translation>
+    </message>
+    <message>
+        <source>A new version %1 is available (you have %2). Update now?</source>
+        <translation>有新版本 %1 可用(当前版本 %2)。是否立即更新?</translation>
+    </message>
+    <message>
+        <source>Release Notes</source>
+        <translation>发行说明</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Yes</source>
+        <translation>是</translation>
+    </message>
+    <message>
+        <source>No</source>
+        <translation>否</translation>
+    </message>
+    <message>
+        <source>Don&apos;t remind me again</source>
+        <translation>不再提醒</translation>
+    </message>
+    <message>
+        <source>To stop these startup checks, click &quot;Don&apos;t remind me again&quot;, or uncheck &quot;Check for updates on startup&quot; in Settings.</source>
+        <translation>如需停止启动时的更新检查,请点击“不再提醒”,或在设置中取消勾选“启动时检查更新”。</translation>
+    </message>
+    <message>
+        <source>Update checks at startup are turned off. To turn them back on, open Settings and check &quot;Check for updates on startup&quot;. You can still check manually from Help &gt; Check for Updates.</source>
+        <translation>启动时的更新检查已关闭。如需重新开启,请打开设置并勾选“启动时检查更新”。您仍可通过“帮助 &gt; 检查更新”手动检查。</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>

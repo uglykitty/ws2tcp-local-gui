@@ -18,6 +18,13 @@ itself continues to run as the signed-in user. Existing per-service settings
 are saved and restored, with the same unexpected-exit and ownership safeguards
 as the Windows implementation.
 
+On Windows and macOS the application checks for a newer release a few seconds
+after startup. If one is found, it asks whether to update now: **Yes** downloads
+the installer and starts it, **No** dismisses the prompt until the next launch,
+and **Don't remind me again** turns the startup check off. The check can also
+be switched off or on in **Settings** with **Check for updates on startup**, and
+it can always be run manually from **Help > Check for Updates...**.
+
 ## Build
 
 By default CMake uses Corrosion to build the `ws2tcp-local` CLI from

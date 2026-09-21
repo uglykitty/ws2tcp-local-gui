@@ -61,6 +61,7 @@ namespace {
 constexpr auto kDefaultListenAddress = "127.0.0.1:3128";
 constexpr auto kUpdateManifestUrl =
     "https://wangguofang.net/ws2tcp-local/releases/latest.json";
+constexpr int kStartupUpdateCheckDelayMs = 3000;
 
 bool isVersionNewer(const QString &remote, const QString &local) {
   const QStringList remoteParts = remote.split(QLatin1Char('.'));
@@ -590,6 +591,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 #endif
   setupTrayIcon();
   refreshStatus();
+
+  if (checkUpdatesOnStartup_) {
+    // Give the window and any startup prompt time to settle first, and read
+    // the setting again in case it was switched off in the meantime.
+    QTimer::singleShot(kStartupUpdateCheckDelayMs, this, [this]() {
+      if (checkUpdatesOnStartup_) {
+        runUpdateCheck(/*startup=*/true);
+      }
+    });
+  }
 }
 
 MainWindow::~MainWindow() {
@@ -835,6 +846,10 @@ void MainWindow::showSettingsDialog() {
   }
   form->addRow(tr("When closing window"), closeBehaviorCombo);
 
+  auto *checkUpdatesCheck = new QCheckBox(&dialog);
+  checkUpdatesCheck->setChecked(checkUpdatesOnStartup_);
+  form->addRow(tr("Check for updates on startup"), checkUpdatesCheck);
+
 #ifdef Q_OS_WIN
   auto *envProxyNoticeCheck = new QCheckBox(&dialog);
   envProxyNoticeCheck->setChecked(!suppressEnvProxyNotice_);
@@ -865,6 +880,7 @@ void MainWindow::showSettingsDialog() {
     authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
+    checkUpdatesOnStartup_ = checkUpdatesCheck->isChecked();
 #ifdef Q_OS_WIN
     suppressEnvProxyNotice_ = !envProxyNoticeCheck->isChecked();
     suppressWslRestartNotice_ = !wslRestartNoticeCheck->isChecked();
@@ -905,20 +921,36 @@ void MainWindow::showAboutDialog() {
 }
 
 void MainWindow::checkForUpdates() {
+  runUpdateCheck(/*startup=*/false);
+}
+
+void MainWindow::runUpdateCheck(bool startup) {
+  if (updateCheckInProgress_) {
+    return;
+  }
+  updateCheckInProgress_ = true;
+
   auto *manager = new QNetworkAccessManager(this);
   QNetworkRequest request{QUrl(kUpdateManifestUrl)};
   request.setHeader(QNetworkRequest::UserAgentHeader,
                      QStringLiteral("ws2tcp-local-gui/%1")
                          .arg(QCoreApplication::applicationVersion()));
   QNetworkReply *reply = manager->get(request);
-  connect(reply, &QNetworkReply::finished, this, [this, reply, manager]() {
+  connect(reply, &QNetworkReply::finished, this,
+          [this, reply, manager, startup]() {
     reply->deleteLater();
     manager->deleteLater();
+    updateCheckInProgress_ = false;
 
     if (reply->error() != QNetworkReply::NoError) {
-      QMessageBox::warning(
-          this, tr("Check for Updates"),
-          tr("Failed to check for updates: %1").arg(reply->errorString()));
+      if (startup) {
+        logMessage(
+            tr("Failed to check for updates: %1").arg(reply->errorString()));
+      } else {
+        QMessageBox::warning(
+            this, tr("Check for Updates"),
+            tr("Failed to check for updates: %1").arg(reply->errorString()));
+      }
       return;
     }
 
@@ -927,16 +959,23 @@ void MainWindow::checkForUpdates() {
     const QString remoteVersion =
         manifest.value(QStringLiteral("version")).toString();
     if (remoteVersion.isEmpty()) {
-      QMessageBox::warning(this, tr("Check for Updates"),
-                            tr("Update server returned an unexpected response."));
+      if (startup) {
+        logMessage(tr("Update server returned an unexpected response."));
+      } else {
+        QMessageBox::warning(
+            this, tr("Check for Updates"),
+            tr("Update server returned an unexpected response."));
+      }
       return;
     }
 
     const QString currentVersion = QCoreApplication::applicationVersion();
     if (!isVersionNewer(remoteVersion, currentVersion)) {
-      QMessageBox::information(
-          this, tr("Check for Updates"),
-          tr("You are using the latest version (%1).").arg(currentVersion));
+      if (!startup) {
+        QMessageBox::information(
+            this, tr("Check for Updates"),
+            tr("You are using the latest version (%1).").arg(currentVersion));
+      }
       return;
     }
 
@@ -946,33 +985,70 @@ void MainWindow::checkForUpdates() {
 #elif defined(Q_OS_MACOS)
     downloadUrl = manifest.value(QStringLiteral("macos_url")).toString();
 #endif
+    // There is nothing to install on this platform, so an unprompted popup
+    // would only be noise.
+    if (startup && downloadUrl.isEmpty()) {
+      return;
+    }
     const QString notesUrl =
         manifest.value(QStringLiteral("notes_url")).toString();
 
     QMessageBox box(this);
-    box.setIcon(QMessageBox::Information);
+    box.setIcon(QMessageBox::Question);
     box.setWindowTitle(tr("Update Available"));
-    box.setText(tr("A new version %1 is available (you have %2).")
-                    .arg(remoteVersion, currentVersion));
-    QPushButton *downloadButton =
+    QString text =
         downloadUrl.isEmpty()
-            ? nullptr
-            : box.addButton(tr("Download"), QMessageBox::AcceptRole);
-    QPushButton *notesButton =
-        notesUrl.isEmpty()
-            ? nullptr
-            : box.addButton(tr("Release Notes"), QMessageBox::HelpRole);
-    box.addButton(QMessageBox::Close);
+            ? tr("A new version %1 is available (you have %2).")
+                  .arg(remoteVersion.toHtmlEscaped(),
+                       currentVersion.toHtmlEscaped())
+            : tr("A new version %1 is available (you have %2). Update now?")
+                  .arg(remoteVersion.toHtmlEscaped(),
+                       currentVersion.toHtmlEscaped());
+    const QUrl notesLink(notesUrl);
+    if (notesLink.scheme() == QLatin1String("https") ||
+        notesLink.scheme() == QLatin1String("http")) {
+      text += QStringLiteral("<p><a href=\"%1\">%2</a></p>")
+                  .arg(notesLink.toEncoded(), tr("Release Notes").toHtmlEscaped());
+    }
+    box.setTextFormat(Qt::RichText);
+    box.setText(text);
+
+    QPushButton *yesButton = nullptr;
+    QPushButton *noButton = nullptr;
+    QPushButton *neverButton = nullptr;
+    if (downloadUrl.isEmpty()) {
+      noButton = box.addButton(tr("Close"), QMessageBox::RejectRole);
+    } else {
+      yesButton = box.addButton(tr("Yes"), QMessageBox::AcceptRole);
+      noButton = box.addButton(tr("No"), QMessageBox::RejectRole);
+      if (startup) {
+        neverButton =
+            box.addButton(tr("Don't remind me again"), QMessageBox::ActionRole);
+        box.setInformativeText(
+            tr("To stop these startup checks, click \"Don't remind me "
+               "again\", or uncheck \"Check for updates on startup\" in "
+               "Settings."));
+      }
+      box.setDefaultButton(yesButton);
+    }
+    box.setEscapeButton(noButton);
     box.exec();
 
-    if (downloadButton && box.clickedButton() == downloadButton) {
+    if (yesButton && box.clickedButton() == yesButton) {
       UpdateDownloadDialog downloadDialog(downloadUrl, remoteVersion, this);
       downloadDialog.exec();
       if (downloadDialog.installerLaunched()) {
         quitGracefully(false);
       }
-    } else if (notesButton && box.clickedButton() == notesButton) {
-      QDesktopServices::openUrl(QUrl(notesUrl));
+    } else if (neverButton && box.clickedButton() == neverButton) {
+      checkUpdatesOnStartup_ = false;
+      saveUserSettings();
+      QMessageBox::information(
+          this, tr("Update Available"),
+          tr("Update checks at startup are turned off. To turn them back "
+             "on, open Settings and check \"Check for updates on "
+             "startup\". You can still check manually from Help > Check "
+             "for Updates."));
     }
   });
 }
@@ -1273,6 +1349,8 @@ void MainWindow::loadUserSettings() {
   }
 
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
+  checkUpdatesOnStartup_ =
+      settings.value("ui/check_updates_on_startup", true).toBool();
   const QString authMode =
       settings.value("proxy/auth_mode", authMode_).toString();
   if (authMode == "token" || authMode == "basic") {
@@ -1309,6 +1387,7 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("ui/close_behavior", closeBehavior_);
   settings.setValue("ui/language", language_);
   settings.setValue("proxy/insecure", insecure_);
+  settings.setValue("ui/check_updates_on_startup", checkUpdatesOnStartup_);
   settings.setValue("proxy/auth_mode", authMode_);
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
   settings.setValue("proxy/set_system_proxy",

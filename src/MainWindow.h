@@ -137,6 +137,11 @@ class MainWindow final : public QMainWindow {
   // How to authenticate to the gateway: "token" (default) or "basic", the
   // compatibility method that is being phased out.
   QString authMode_ = QStringLiteral("token");
+  // http://, socks5h:// or socks5:// URL of a proxy server that connections to
+  // the gateway go through when upstreamProxyEnabled_ is set. The URL is kept
+  // while the switch is off, so it can be turned back on without retyping.
+  QString upstreamProxy_;
+  bool upstreamProxyEnabled_ = false;
   QString closeBehavior_ = "ask";
   QString sessionCloseBehavior_;
   QString language_ = "en_US";

@@ -63,6 +63,24 @@ constexpr auto kUpdateManifestUrl =
     "https://wangguofang.net/ws2tcp-local/releases/latest.json";
 constexpr int kStartupUpdateCheckDelayMs = 3000;
 
+// Blank means no upstream proxy. Otherwise a http://, socks5:// or socks5h://
+// URL with a host and no path, like ws2tcp-local-core accepts.
+bool isValidUpstreamProxy(const QString &text) {
+  const QString trimmed = text.trimmed();
+  if (trimmed.isEmpty()) {
+    return true;
+  }
+  const QUrl url(trimmed, QUrl::StrictMode);
+  const QString scheme = url.scheme();
+  return url.isValid() &&
+         (scheme == QLatin1String("http") ||
+          scheme == QLatin1String("socks5") ||
+          scheme == QLatin1String("socks5h")) &&
+         !url.host().isEmpty() &&
+         (url.path().isEmpty() || url.path() == QLatin1String("/")) &&
+         !url.hasQuery() && !url.hasFragment();
+}
+
 bool isVersionNewer(const QString &remote, const QString &local) {
   const QStringList remoteParts = remote.split(QLatin1Char('.'));
   const QStringList localParts = local.split(QLatin1Char('.'));
@@ -836,6 +854,26 @@ void MainWindow::showSettingsDialog() {
          "(ws2tcp-router) that has no token authentication."));
   form->addRow(tr("Authentication"), authModeCombo);
 
+  auto *upstreamProxyCheck = new QCheckBox(&dialog);
+  upstreamProxyCheck->setChecked(upstreamProxyEnabled_);
+  upstreamProxyCheck->setEnabled(!running);
+  form->addRow(tr("Use upstream proxy"), upstreamProxyCheck);
+
+  auto *upstreamProxyEdit = new QLineEdit(upstreamProxy_, &dialog);
+  upstreamProxyEdit->setPlaceholderText(
+      tr("http://host:port or socks5h://host:port (optional)"));
+  upstreamProxyEdit->setEnabled(!running && upstreamProxyEnabled_);
+  upstreamProxyEdit->setMinimumWidth(320);
+  upstreamProxyEdit->setToolTip(
+      tr("Connect to the gateway through this proxy server. Use http:// for "
+         "an HTTP proxy, socks5h:// for a SOCKS5 proxy that resolves the "
+         "gateway's hostname, or socks5:// to resolve it locally. "
+         "Credentials can be given as user:password@host:port, with special "
+         "characters percent-encoded."));
+  form->addRow(tr("Upstream proxy"), upstreamProxyEdit);
+  connect(upstreamProxyCheck, &QCheckBox::toggled, upstreamProxyEdit,
+          &QWidget::setEnabled);
+
   auto *closeBehaviorCombo = new QComboBox(&dialog);
   closeBehaviorCombo->addItem(tr("Ask every time"), "ask");
   closeBehaviorCombo->addItem(tr("Minimize to tray"), "tray");
@@ -870,11 +908,28 @@ void MainWindow::showSettingsDialog() {
   auto *buttons = new QDialogButtonBox(
       QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   layout->addWidget(buttons);
-  connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::accepted, &dialog,
+          [&dialog, upstreamProxyCheck, upstreamProxyEdit]() {
+    // Only an enabled proxy has to be usable; a disabled one keeps whatever
+    // was typed.
+    const QString text = upstreamProxyEdit->text().trimmed();
+    if (upstreamProxyCheck->isChecked() &&
+        (text.isEmpty() || !isValidUpstreamProxy(text))) {
+      QMessageBox::warning(
+          &dialog, tr("ws2tcp-local"),
+          tr("The upstream proxy must be a URL such as "
+             "http://host:port, socks5h://host:port or socks5://host:port."));
+      upstreamProxyEdit->setFocus();
+      return;
+    }
+    dialog.accept();
+  });
   connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
   if (dialog.exec() == QDialog::Accepted) {
     bufferSize_ = bufferSizeSpin->value();
+    upstreamProxy_ = upstreamProxyEdit->text().trimmed();
+    upstreamProxyEnabled_ = upstreamProxyCheck->isChecked();
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
     authMode_ = authModeCombo->currentData().toString();
@@ -1205,6 +1260,9 @@ QByteArray MainWindow::buildConfigJson() const {
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
   config["auth_mode"] = authMode_;
+  if (upstreamProxyEnabled_ && !upstreamProxy_.isEmpty()) {
+    config["upstream_proxy"] = upstreamProxy_;
+  }
   QJsonObject headers;
   headers["User-Agent"] = QStringLiteral("ws2tcp-local-gui/%1")
                               .arg(QCoreApplication::applicationVersion());
@@ -1351,6 +1409,16 @@ void MainWindow::loadUserSettings() {
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
   checkUpdatesOnStartup_ =
       settings.value("ui/check_updates_on_startup", true).toBool();
+  const QString upstreamProxy =
+      settings.value("proxy/upstream_proxy").toString().trimmed();
+  if (isValidUpstreamProxy(upstreamProxy)) {
+    upstreamProxy_ = upstreamProxy;
+  }
+  // Settings saved before the switch existed enable the proxy they have.
+  upstreamProxyEnabled_ =
+      settings.value("proxy/upstream_proxy_enabled",
+                     !upstreamProxy_.isEmpty()).toBool() &&
+      !upstreamProxy_.isEmpty();
   const QString authMode =
       settings.value("proxy/auth_mode", authMode_).toString();
   if (authMode == "token" || authMode == "basic") {
@@ -1389,6 +1457,8 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("proxy/insecure", insecure_);
   settings.setValue("ui/check_updates_on_startup", checkUpdatesOnStartup_);
   settings.setValue("proxy/auth_mode", authMode_);
+  settings.setValue("proxy/upstream_proxy", upstreamProxy_);
+  settings.setValue("proxy/upstream_proxy_enabled", upstreamProxyEnabled_);
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
   settings.setValue("proxy/set_system_proxy",
                     systemProxyCheck_->isChecked());

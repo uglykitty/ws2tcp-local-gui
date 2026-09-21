@@ -438,6 +438,26 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>Token:登录一次,之后用短期有效的 access token 建立连接,不必每次都发送密码。Basic:每个连接都发送密码,仅用于没有 token 认证的网关(ws2tcp-router)。</translation>
     </message>
     <message>
+        <source>http://host:port or socks5h://host:port (optional)</source>
+        <translation>http://host:port 或 socks5h://host:port(可选)</translation>
+    </message>
+    <message>
+        <source>Connect to the gateway through this proxy server. Use http:// for an HTTP proxy, socks5h:// for a SOCKS5 proxy that resolves the gateway&apos;s hostname, or socks5:// to resolve it locally. Credentials can be given as user:password@host:port, with special characters percent-encoded.</source>
+        <translation>通过该代理服务器连接网关。http:// 表示 HTTP 代理,socks5h:// 表示由代理解析网关域名的 SOCKS5 代理,socks5:// 表示在本地解析域名。认证信息可写成 user:password@host:port,其中的特殊字符需要百分号编码。</translation>
+    </message>
+    <message>
+        <source>Use upstream proxy</source>
+        <translation>使用上游代理</translation>
+    </message>
+    <message>
+        <source>Upstream proxy</source>
+        <translation>上游代理</translation>
+    </message>
+    <message>
+        <source>The upstream proxy must be a URL such as http://host:port, socks5h://host:port or socks5://host:port.</source>
+        <translation>上游代理必须是形如 http://host:port、socks5h://host:port 或 socks5://host:port 的 URL。</translation>
+    </message>
+    <message>
         <location filename="../src/MainWindow.cpp" line="826"/>
         <source>Authentication</source>
         <translation>认证方式</translation>

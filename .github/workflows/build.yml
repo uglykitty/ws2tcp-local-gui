@@ -21,20 +21,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: ws2tcp-local-gui
-
-      - name: Check out CLI
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local
-          path: ws2tcp-local
-          submodules: true
-
-      - name: Check out FFI library
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local-ffi
-          path: ws2tcp-local-ffi
-          submodules: true
+          submodules: recursive
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -84,20 +71,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: ws2tcp-local-gui
-
-      - name: Check out CLI
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local
-          path: ws2tcp-local
-          submodules: true
-
-      - name: Check out FFI library
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local-ffi
-          path: ws2tcp-local-ffi
-          submodules: true
+          submodules: recursive
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

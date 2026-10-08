@@ -1,0 +1,8 @@
+[submodule "ws2tcp-local"]
+	path = ws2tcp-local
+	url = https://github.com/uglykitty/ws2tcp-local.git
+	branch = main
+[submodule "ws2tcp-local-ffi"]
+	path = ws2tcp-local-ffi
+	url = https://github.com/uglykitty/ws2tcp-local-ffi.git
+	branch = main

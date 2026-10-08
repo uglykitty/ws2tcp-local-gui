@@ -25,14 +25,18 @@ set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Network Widgets LinguistTools)
 
+# ws2tcp-local and ws2tcp-local-ffi are git submodules of this repository, and
+# each has ws2tcp-local-core as a submodule of its own.
 set(WS2TCP_LOCAL_CLI_SOURCE_DIR
-    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local"
+    "${CMAKE_CURRENT_LIST_DIR}/ws2tcp-local"
     CACHE PATH "Path to the ws2tcp-local Rust CLI crate")
 
-if(NOT EXISTS "${WS2TCP_LOCAL_CLI_SOURCE_DIR}/Cargo.toml")
+if(NOT EXISTS "${WS2TCP_LOCAL_CLI_SOURCE_DIR}/Cargo.toml" OR
+        NOT EXISTS "${WS2TCP_LOCAL_CLI_SOURCE_DIR}/ws2tcp-local-core/Cargo.toml")
     message(FATAL_ERROR
         "ws2tcp-local CLI was not found at ${WS2TCP_LOCAL_CLI_SOURCE_DIR}. "
-        "Set WS2TCP_LOCAL_CLI_SOURCE_DIR to its source directory.")
+        "Run `git submodule update --init --recursive`, or set "
+        "WS2TCP_LOCAL_CLI_SOURCE_DIR to its source directory.")
 endif()
 
 FetchContent_Declare(Corrosion
@@ -50,13 +54,13 @@ option(WS2TCP_LOCAL_FFI_AUTO_BUILD
     "Build ws2tcp-local-ffi with Cargo when no prebuilt FFI library is provided"
     ON)
 set(WS2TCP_LOCAL_FFI_SOURCE_DIR
-    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local-ffi"
+    "${CMAKE_CURRENT_LIST_DIR}/ws2tcp-local-ffi"
     CACHE PATH "Path to the ws2tcp-local-ffi Rust crate")
 set(WS2TCP_LOCAL_FFI_CRATE_VERSION
     "0.3.1"
     CACHE STRING "ws2tcp-local-ffi crate version to fetch from crates.io when the local crate is missing")
 set(WS2TCP_LOCAL_FFI_INCLUDE_DIR
-    "${CMAKE_CURRENT_LIST_DIR}/../ws2tcp-local-ffi/include"
+    "${CMAKE_CURRENT_LIST_DIR}/ws2tcp-local-ffi/include"
     CACHE PATH "Path to ws2tcp-local FFI headers")
 set(WS2TCP_LOCAL_FFI_TARGET_DIR
     ""

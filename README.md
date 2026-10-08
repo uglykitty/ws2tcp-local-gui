@@ -57,11 +57,21 @@ by an earlier version is read into the editor on first launch.
 
 ## Build
 
-By default CMake uses Corrosion to build the `ws2tcp-local` CLI from
-`../ws2tcp-local` and builds the Rust FFI crate from `../ws2tcp-local-ffi`
-with Cargo. If the local FFI crate is missing, CMake asks Cargo to fetch
-`ws2tcp-local-ffi` from crates.io and builds the downloaded registry source.
-Cargo also downloads the crate's transitive crates.io dependencies.
+The `ws2tcp-local` CLI and the `ws2tcp-local-ffi` crate are git submodules of
+this repository, each with `ws2tcp-local-core` as a submodule of its own. Clone
+with submodules, or initialize them in an existing checkout:
+
+```bash
+git clone --recursive https://github.com/uglykitty/ws2tcp-local-gui.git
+# or, in an existing checkout:
+git submodule update --init --recursive
+```
+
+CMake uses Corrosion to build the CLI from `ws2tcp-local` and builds the Rust
+FFI crate from `ws2tcp-local-ffi` with Cargo. If the FFI crate is missing,
+CMake asks Cargo to fetch `ws2tcp-local-ffi` from crates.io and builds the
+downloaded registry source. Cargo also downloads the crates' transitive
+crates.io dependencies.
 
 ```bash
 cmake -S . -B build
@@ -172,14 +182,14 @@ Configure these repository Actions secrets before pushing a release tag:
 - `APPLE_APP_PASSWORD`: app-specific password used by `notarytool`
 - `APPLE_TEAM_ID`: Apple Developer team ID
 
-If the CLI crate is not in the default sibling directory, pass its path:
+To build the CLI from another checkout, pass its path:
 
 ```bash
 cmake -S . -B build \
   -DWS2TCP_LOCAL_CLI_SOURCE_DIR=/path/to/ws2tcp-local
 ```
 
-If the FFI crate is not in the default sibling directory, pass its path:
+To build the FFI crate from another checkout, pass its path:
 
 ```bash
 cmake -S . -B build \
@@ -202,7 +212,7 @@ You can still use a prebuilt static FFI library by passing its path:
 ```bash
 cmake -S . -B build \
   -DWS2TCP_LOCAL_FFI_AUTO_BUILD=OFF \
-  -DWS2TCP_LOCAL_FFI_LIBRARY="$PWD/../ws2tcp-local-ffi/target/debug/libws2tcp_local_ffi.a"
+  -DWS2TCP_LOCAL_FFI_LIBRARY="$PWD/ws2tcp-local-ffi/target/debug/libws2tcp_local_ffi.a"
 cmake --build build
 cmake --install build --prefix target/install
 ```

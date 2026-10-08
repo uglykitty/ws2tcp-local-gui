@@ -5,6 +5,26 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.5.0] - 2026-10-08
+
+### 🚀 Features
+
+- *(settings)* Add an option to use HTTP/3 (QUIC) to the gateway
+
+### 🐛 Bug Fixes
+
+- *(build)* Declare the Cargo-built FFI libraries as byproducts
+
+### ⚙️ Miscellaneous Tasks
+
+- Check out core through the CLI and FFI submodules
+- Disable the macOS jobs until signing keys are available
+
+### 💼 Other
+
+- Vendor ws2tcp-local and ws2tcp-local-ffi as git submodules
+- Update ws2tcp-local-ffi to 0.4.0
+
 ## [0.4.0] - 2026-09-21
 
 ### 🚀 Features

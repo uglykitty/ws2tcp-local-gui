@@ -25,18 +25,14 @@ jobs:
         with:
           repository: uglykitty/ws2tcp-local
           path: ws2tcp-local
-
-      - name: Check out core library
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local-core
-          path: ws2tcp-local-core
+          submodules: true
 
       - name: Check out FFI library
         uses: actions/checkout@v6
         with:
           repository: uglykitty/ws2tcp-local-ffi
           path: ws2tcp-local-ffi
+          submodules: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -115,18 +111,14 @@ jobs:
         with:
           repository: uglykitty/ws2tcp-local
           path: ws2tcp-local
-
-      - name: Check out core library
-        uses: actions/checkout@v6
-        with:
-          repository: uglykitty/ws2tcp-local-core
-          path: ws2tcp-local-core
+          submodules: true
 
       - name: Check out FFI library
         uses: actions/checkout@v6
         with:
           repository: uglykitty/ws2tcp-local-ffi
           path: ws2tcp-local-ffi
+          submodules: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

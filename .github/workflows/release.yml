@@ -310,9 +310,12 @@ jobs:
             "upload/${version}/" \
             "deploy-ws2tcp@wangguofang.net:releases/${version}/"
 
+      # The destination is the directory, not releases/latest.json: since
+      # rsync 3.5.0, rrsync on the server pins an existing destination file
+      # as /proc/self/fd/N, which rsync then cannot replace.
       - name: Publish latest.json
         run: >-
           rsync -av
           -e "ssh -i ~/.ssh/ws2tcp_deploy_key -o StrictHostKeyChecking=yes"
           upload/latest.json
-          deploy-ws2tcp@wangguofang.net:releases/latest.json
+          deploy-ws2tcp@wangguofang.net:releases/

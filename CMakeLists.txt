@@ -206,17 +206,22 @@ if(NOT WS2TCP_LOCAL_FFI_LIBRARY)
             "CARGO_TARGET_DIR=${WS2TCP_LOCAL_FFI_TARGET_DIR}")
     endif()
 
+    ws2tcp_local_ffi_artifact(debug WS2TCP_LOCAL_FFI_DEBUG_LIBRARY)
+    ws2tcp_local_ffi_artifact(release WS2TCP_LOCAL_FFI_RELEASE_LIBRARY)
+
+    # BYPRODUCTS tells generators such as Ninja that this target produces the
+    # libraries, which do not exist yet in a fresh checkout.
     add_custom_target(ws2tcp_local_ffi_cargo_build
         COMMAND
             "${CMAKE_COMMAND}" -E env
                 ${WS2TCP_LOCAL_FFI_CARGO_ENV}
                 "${CARGO_EXECUTABLE}" build
                 "$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:--release>"
+        BYPRODUCTS
+            "${WS2TCP_LOCAL_FFI_DEBUG_LIBRARY}"
+            "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}"
         WORKING_DIRECTORY "${WS2TCP_LOCAL_FFI_SOURCE_DIR}"
         COMMENT "Building ws2tcp-local-ffi with Cargo")
-
-    ws2tcp_local_ffi_artifact(debug WS2TCP_LOCAL_FFI_DEBUG_LIBRARY)
-    ws2tcp_local_ffi_artifact(release WS2TCP_LOCAL_FFI_RELEASE_LIBRARY)
 
     if(CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
         set(WS2TCP_LOCAL_FFI_LIBRARY "${WS2TCP_LOCAL_FFI_RELEASE_LIBRARY}")

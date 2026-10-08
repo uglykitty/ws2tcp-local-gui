@@ -74,6 +74,8 @@ jobs:
 
   macos:
     name: macOS arm64
+    # Disabled for now: macOS builds need the signing keys. Remove to re-enable.
+    if: false
     runs-on: macos-15
     timeout-minutes: 60
 

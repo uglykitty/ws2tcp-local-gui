@@ -469,6 +469,14 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>上游代理</translation>
     </message>
     <message>
+        <source>Use HTTP/3 (QUIC)</source>
+        <translation>使用 HTTP/3 (QUIC)</translation>
+    </message>
+    <message>
+        <source>Open gateway tunnels over HTTP/3 (QUIC, over UDP), falling back to TCP when the network or the gateway does not allow it. Only for wss:// gateways, and not used together with an upstream proxy.</source>
+        <translation>通过 HTTP/3 (QUIC,基于 UDP) 建立到网关的隧道,网络或网关不支持时自动回退到 TCP。仅适用于 wss:// 网关,设置了上游代理时不会使用。</translation>
+    </message>
+    <message>
         <source>The upstream proxy must be a URL such as http://host:port, socks5h://host:port or socks5://host:port.</source>
         <translation>上游代理必须是形如 http://host:port、socks5h://host:port 或 socks5://host:port 的 URL。</translation>
     </message>

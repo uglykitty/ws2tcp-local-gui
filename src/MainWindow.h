@@ -154,6 +154,8 @@ class MainWindow final : public QMainWindow {
   int bufferSize_ = 16 * 1024;
   int refreshIntervalSeconds_ = 60;
   bool insecure_ = false;
+  // Open gateway tunnels over HTTP/3 (QUIC), falling back to TCP.
+  bool http3_ = false;
   bool checkUpdatesOnStartup_ = true;
   bool updateCheckInProgress_ = false;
   // How to authenticate to the gateway: "token" (default) or "basic", the

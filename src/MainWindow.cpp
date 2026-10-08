@@ -863,6 +863,15 @@ void MainWindow::showSettingsDialog() {
   form->addRow(tr("Skip TLS certificate verification (insecure)"),
               insecureCheck);
 
+  auto *http3Check = new QCheckBox(&dialog);
+  http3Check->setChecked(http3_);
+  http3Check->setEnabled(!running);
+  http3Check->setToolTip(
+      tr("Open gateway tunnels over HTTP/3 (QUIC, over UDP), falling back to "
+         "TCP when the network or the gateway does not allow it. Only for "
+         "wss:// gateways, and not used together with an upstream proxy."));
+  form->addRow(tr("Use HTTP/3 (QUIC)"), http3Check);
+
   auto *authModeCombo = new QComboBox(&dialog);
   authModeCombo->addItem(tr("Token (recommended)"), "token");
   authModeCombo->addItem(tr("Basic (compatibility, being phased out)"),
@@ -958,6 +967,7 @@ void MainWindow::showSettingsDialog() {
     upstreamProxyEnabled_ = upstreamProxyCheck->isChecked();
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
+    http3_ = http3Check->isChecked();
     authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
@@ -1479,6 +1489,7 @@ QByteArray MainWindow::buildConfigJson(const QString &customRulesPath) const {
   config["rule_refresh_interval_secs"] = refreshIntervalSeconds_;
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
+  config["http3"] = http3_;
   config["auth_mode"] = authMode_;
   if (upstreamProxyEnabled_ && !upstreamProxy_.isEmpty()) {
     config["upstream_proxy"] = upstreamProxy_;
@@ -1678,6 +1689,7 @@ void MainWindow::loadUserSettings() {
   }
 
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
+  http3_ = settings.value("proxy/http3", http3_).toBool();
   checkUpdatesOnStartup_ =
       settings.value("ui/check_updates_on_startup", true).toBool();
   const QString upstreamProxy =
@@ -1727,6 +1739,7 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("ui/close_behavior", closeBehavior_);
   settings.setValue("ui/language", language_);
   settings.setValue("proxy/insecure", insecure_);
+  settings.setValue("proxy/http3", http3_);
   settings.setValue("ui/check_updates_on_startup", checkUpdatesOnStartup_);
   settings.setValue("proxy/auth_mode", authMode_);
   settings.setValue("proxy/upstream_proxy", upstreamProxy_);

@@ -5,6 +5,16 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.6.0] - 2026-10-10
+
+### 🚀 Features
+
+- Add an HTTP/3 only option to the settings
+
+### 💼 Other
+
+- Update ws2tcp-local to 0.6.0
+
 ## [0.5.2] - 2026-10-10
 
 ### 💼 Other

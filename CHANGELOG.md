@@ -5,6 +5,13 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.5.2] - 2026-10-10
+
+### 💼 Other
+
+- Update ws2tcp-local-ffi to 0.4.1
+- Update ws2tcp-local to 0.5.2
+
 ## [0.5.1] - 2026-10-10
 
 ### ⚙️ Miscellaneous Tasks

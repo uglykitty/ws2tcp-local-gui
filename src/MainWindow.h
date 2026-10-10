@@ -155,10 +155,9 @@ class MainWindow final : public QMainWindow {
   int bufferSize_ = 16 * 1024;
   int refreshIntervalSeconds_ = 60;
   bool insecure_ = false;
-  // Open gateway tunnels over HTTP/3 (QUIC), falling back to TCP.
-  bool http3_ = false;
-  // With http3_, never fall back to TCP: a failing HTTP/3 fails the connection.
-  bool http3Only_ = false;
+  // How gateway tunnels use HTTP/3 (QUIC): "off", "on" (falling back to TCP)
+  // or "only" (a failing HTTP/3 fails the connection).
+  QString http3Mode_ = QStringLiteral("off");
   bool checkUpdatesOnStartup_ = true;
   bool updateCheckInProgress_ = false;
   // How to authenticate to the gateway: "token" (default) or "basic", the

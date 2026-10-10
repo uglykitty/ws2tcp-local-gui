@@ -868,7 +868,7 @@ void MainWindow::showSettingsDialog() {
   http3Combo->addItem(tr("On (fall back to TCP)"), "on");
   http3Combo->addItem(tr("Only (no TCP fallback)"), "only");
   http3Combo->setCurrentIndex(
-      http3Combo->findData(!http3_ ? "off" : http3Only_ ? "only" : "on"));
+      http3Combo->findData(http3Mode_));
   // Unlike the other connection settings, this one can change while running.
   http3Combo->setToolTip(
       tr("Open gateway tunnels over HTTP/3 (QUIC, over UDP). On falls back to "
@@ -983,10 +983,8 @@ void MainWindow::showSettingsDialog() {
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
     const QString http3Mode = http3Combo->currentData().toString();
-    const bool http3Changed =
-        http3_ != (http3Mode != "off") || http3Only_ != (http3Mode == "only");
-    http3_ = http3Mode != "off";
-    http3Only_ = http3Mode == "only";
+    const bool http3Changed = http3Mode_ != http3Mode;
+    http3Mode_ = http3Mode;
     authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
@@ -1526,9 +1524,7 @@ QByteArray MainWindow::buildConfigJson(const QString &customRulesPath) const {
   config["rule_refresh_interval_secs"] = refreshIntervalSeconds_;
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
-  config["http3"] = http3_;
-  // http3_only implies http3, so it only applies while HTTP/3 is on.
-  config["http3_only"] = http3_ && http3Only_;
+  config["http3"] = http3Mode_;
   config["auth_mode"] = authMode_;
   if (upstreamProxyEnabled_ && !upstreamProxy_.isEmpty()) {
     config["upstream_proxy"] = upstreamProxy_;
@@ -1728,8 +1724,18 @@ void MainWindow::loadUserSettings() {
   }
 
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
-  http3_ = settings.value("proxy/http3", http3_).toBool();
-  http3Only_ = settings.value("proxy/http3_only", http3Only_).toBool();
+  {
+    // Before the three modes, "proxy/http3" was a boolean and "proxy/http3_only"
+    // a second one.
+    const QString saved = settings.value("proxy/http3").toString();
+    if (saved == "off" || saved == "on" || saved == "only") {
+      http3Mode_ = saved;
+    } else if (settings.value("proxy/http3_only", false).toBool()) {
+      http3Mode_ = QStringLiteral("only");
+    } else if (settings.value("proxy/http3", false).toBool()) {
+      http3Mode_ = QStringLiteral("on");
+    }
+  }
   checkUpdatesOnStartup_ =
       settings.value("ui/check_updates_on_startup", true).toBool();
   const QString upstreamProxy =
@@ -1779,8 +1785,8 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("ui/close_behavior", closeBehavior_);
   settings.setValue("ui/language", language_);
   settings.setValue("proxy/insecure", insecure_);
-  settings.setValue("proxy/http3", http3_);
-  settings.setValue("proxy/http3_only", http3Only_);
+  settings.setValue("proxy/http3", http3Mode_);
+  settings.remove("proxy/http3_only");
   settings.setValue("ui/check_updates_on_startup", checkUpdatesOnStartup_);
   settings.setValue("proxy/auth_mode", authMode_);
   settings.setValue("proxy/upstream_proxy", upstreamProxy_);

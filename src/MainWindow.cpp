@@ -863,27 +863,19 @@ void MainWindow::showSettingsDialog() {
   form->addRow(tr("Skip TLS certificate verification (insecure)"),
               insecureCheck);
 
-  auto *http3Check = new QCheckBox(&dialog);
-  http3Check->setChecked(http3_);
-  http3Check->setEnabled(!running);
-  http3Check->setToolTip(
-      tr("Open gateway tunnels over HTTP/3 (QUIC, over UDP), falling back to "
-         "TCP when the network or the gateway does not allow it. Only for "
-         "wss:// gateways, and not used together with an upstream proxy."));
-  form->addRow(tr("Use HTTP/3 (QUIC)"), http3Check);
-
-  auto *http3OnlyCheck = new QCheckBox(&dialog);
-  http3OnlyCheck->setChecked(http3Only_);
-  http3OnlyCheck->setEnabled(!running && http3Check->isChecked());
-  http3OnlyCheck->setToolTip(
-      tr("Never fall back to TCP: when HTTP/3 does not work, connections "
-         "fail. Needs a wss:// gateway, and cannot be used together with an "
-         "upstream proxy."));
-  form->addRow(tr("HTTP/3 only (no TCP fallback)"), http3OnlyCheck);
-  connect(http3Check, &QCheckBox::toggled, http3OnlyCheck,
-          [http3OnlyCheck, running](bool checked) {
-            http3OnlyCheck->setEnabled(!running && checked);
-          });
+  auto *http3Combo = new QComboBox(&dialog);
+  http3Combo->addItem(tr("Off (TCP only)"), "off");
+  http3Combo->addItem(tr("On (fall back to TCP)"), "on");
+  http3Combo->addItem(tr("Only (no TCP fallback)"), "only");
+  http3Combo->setCurrentIndex(
+      http3Combo->findData(!http3_ ? "off" : http3Only_ ? "only" : "on"));
+  // Unlike the other connection settings, this one can change while running.
+  http3Combo->setToolTip(
+      tr("Open gateway tunnels over HTTP/3 (QUIC, over UDP). On falls back to "
+         "TCP when the network or the gateway does not allow it; Only makes "
+         "connections fail instead. Only for wss:// gateways, and not used "
+         "together with an upstream proxy."));
+  form->addRow(tr("Use HTTP/3 (QUIC)"), http3Combo);
 
   auto *authModeCombo = new QComboBox(&dialog);
   authModeCombo->addItem(tr("Token (recommended)"), "token");
@@ -957,8 +949,8 @@ void MainWindow::showSettingsDialog() {
       QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   layout->addWidget(buttons);
   connect(buttons, &QDialogButtonBox::accepted, &dialog,
-          [&dialog, upstreamProxyCheck, upstreamProxyEdit, http3Check,
-           http3OnlyCheck]() {
+          [&dialog, upstreamProxyCheck, upstreamProxyEdit,
+           http3Combo]() {
     // Only an enabled proxy has to be usable; a disabled one keeps whatever
     // was typed.
     const QString text = upstreamProxyEdit->text().trimmed();
@@ -971,13 +963,13 @@ void MainWindow::showSettingsDialog() {
       upstreamProxyEdit->setFocus();
       return;
     }
-    if (http3Check->isChecked() && http3OnlyCheck->isChecked() &&
+    if (http3Combo->currentData().toString() == "only" &&
         upstreamProxyCheck->isChecked()) {
       QMessageBox::warning(
           &dialog, tr("ws2tcp-local"),
           tr("HTTP/3 only cannot be used together with an upstream proxy, "
              "because QUIC cannot pass through one."));
-      http3OnlyCheck->setFocus();
+      http3Combo->setFocus();
       return;
     }
     dialog.accept();
@@ -990,8 +982,11 @@ void MainWindow::showSettingsDialog() {
     upstreamProxyEnabled_ = upstreamProxyCheck->isChecked();
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
-    http3_ = http3Check->isChecked();
-    http3Only_ = http3OnlyCheck->isChecked();
+    const QString http3Mode = http3Combo->currentData().toString();
+    const bool http3Changed =
+        http3_ != (http3Mode != "off") || http3Only_ != (http3Mode == "only");
+    http3_ = http3Mode != "off";
+    http3Only_ = http3Mode == "only";
     authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
@@ -1002,6 +997,24 @@ void MainWindow::showSettingsDialog() {
     suppressWslMirroredPrompt_ = !wslMirroredPromptCheck->isChecked();
 #endif
     saveUserSettings();
+    if (http3Changed && running) {
+      applyHttp3Mode(http3Mode);
+    }
+  }
+}
+
+void MainWindow::applyHttp3Mode(const QString &mode) {
+  if (handle_ == nullptr ||
+      ws2tcp_status(handle_) != WS2TCP_STATUS_RUNNING) {
+    return;
+  }
+
+  const QByteArray modeUtf8 = mode.toUtf8();
+  if (ws2tcp_set_http3_mode(handle_, modeUtf8.constData()) == WS2TCP_OK) {
+    logMessage(tr("HTTP/3 mode changed to %1").arg(mode));
+  } else {
+    appendError(tr("Failed to change the HTTP/3 mode: %1")
+                    .arg(QString::fromUtf8(ws2tcp_last_error(handle_))));
   }
 }
 

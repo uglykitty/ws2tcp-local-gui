@@ -37,6 +37,7 @@ class MainWindow final : public QMainWindow {
   void startProxy();
   void stopProxy();
   void updateProxyMode(const QString &mode);
+  void applyHttp3Mode(const QString &mode);
   void refreshStatus();
   void appendLog(QString message);
   void showSettingsDialog();

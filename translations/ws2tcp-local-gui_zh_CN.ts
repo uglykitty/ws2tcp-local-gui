@@ -473,16 +473,28 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>使用 HTTP/3 (QUIC)</translation>
     </message>
     <message>
-        <source>Open gateway tunnels over HTTP/3 (QUIC, over UDP), falling back to TCP when the network or the gateway does not allow it. Only for wss:// gateways, and not used together with an upstream proxy.</source>
-        <translation>通过 HTTP/3 (QUIC,基于 UDP) 建立到网关的隧道,网络或网关不支持时自动回退到 TCP。仅适用于 wss:// 网关,设置了上游代理时不会使用。</translation>
+        <source>HTTP/3 mode changed to %1</source>
+        <translation>HTTP/3 模式已切换为 %1</translation>
     </message>
     <message>
-        <source>HTTP/3 only (no TCP fallback)</source>
-        <translation>仅使用 HTTP/3 (不回退 TCP)</translation>
+        <source>Failed to change the HTTP/3 mode: %1</source>
+        <translation>切换 HTTP/3 模式失败:%1</translation>
     </message>
     <message>
-        <source>Never fall back to TCP: when HTTP/3 does not work, connections fail. Needs a wss:// gateway, and cannot be used together with an upstream proxy.</source>
-        <translation>不回退到 TCP:HTTP/3 不可用时连接直接失败。需要 wss:// 网关,且不能与上游代理同时使用。</translation>
+        <source>Off (TCP only)</source>
+        <translation>关闭 (仅 TCP)</translation>
+    </message>
+    <message>
+        <source>On (fall back to TCP)</source>
+        <translation>开启 (失败时回退 TCP)</translation>
+    </message>
+    <message>
+        <source>Only (no TCP fallback)</source>
+        <translation>仅 HTTP/3 (不回退 TCP)</translation>
+    </message>
+    <message>
+        <source>Open gateway tunnels over HTTP/3 (QUIC, over UDP). On falls back to TCP when the network or the gateway does not allow it; Only makes connections fail instead. Only for wss:// gateways, and not used together with an upstream proxy.</source>
+        <translation>通过 HTTP/3 (QUIC,基于 UDP) 建立到网关的隧道。“开启”在网络或网关不支持时回退到 TCP;“仅 HTTP/3”则直接让连接失败。仅适用于 wss:// 网关,设置了上游代理时不会使用。</translation>
     </message>
     <message>
         <source>HTTP/3 only cannot be used together with an upstream proxy, because QUIC cannot pass through one.</source>

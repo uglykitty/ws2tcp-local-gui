@@ -5,6 +5,18 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.7.1] - 2026-10-10
+
+### 🚜 Refactor
+
+- Keep the HTTP/3 mode as one setting, for ws2tcp-local-ffi 0.7.0
+
+### 💼 Other
+
+- Update ws2tcp-local to 0.8.0
+- Update ws2tcp-local-ffi to 0.7.0
+- Update ws2tcp-local to 0.9.0
+
 ## [0.7.0] - 2026-10-10
 
 ### 🚀 Features

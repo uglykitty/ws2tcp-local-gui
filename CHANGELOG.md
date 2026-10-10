@@ -5,6 +5,16 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.5.1] - 2026-10-10
+
+### ⚙️ Miscellaneous Tasks
+
+- Publish latest.json into the releases directory
+
+### 💼 Other
+
+- Update ws2tcp-local to 0.5.1
+
 ## [0.5.0] - 2026-10-08
 
 ### 🚀 Features

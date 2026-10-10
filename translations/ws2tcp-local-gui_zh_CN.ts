@@ -477,6 +477,18 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <translation>通过 HTTP/3 (QUIC,基于 UDP) 建立到网关的隧道,网络或网关不支持时自动回退到 TCP。仅适用于 wss:// 网关,设置了上游代理时不会使用。</translation>
     </message>
     <message>
+        <source>HTTP/3 only (no TCP fallback)</source>
+        <translation>仅使用 HTTP/3 (不回退 TCP)</translation>
+    </message>
+    <message>
+        <source>Never fall back to TCP: when HTTP/3 does not work, connections fail. Needs a wss:// gateway, and cannot be used together with an upstream proxy.</source>
+        <translation>不回退到 TCP:HTTP/3 不可用时连接直接失败。需要 wss:// 网关,且不能与上游代理同时使用。</translation>
+    </message>
+    <message>
+        <source>HTTP/3 only cannot be used together with an upstream proxy, because QUIC cannot pass through one.</source>
+        <translation>“仅使用 HTTP/3”不能与上游代理同时使用,因为 QUIC 无法通过代理。</translation>
+    </message>
+    <message>
         <source>The upstream proxy must be a URL such as http://host:port, socks5h://host:port or socks5://host:port.</source>
         <translation>上游代理必须是形如 http://host:port、socks5h://host:port 或 socks5://host:port 的 URL。</translation>
     </message>

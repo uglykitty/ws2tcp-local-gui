@@ -872,6 +872,19 @@ void MainWindow::showSettingsDialog() {
          "wss:// gateways, and not used together with an upstream proxy."));
   form->addRow(tr("Use HTTP/3 (QUIC)"), http3Check);
 
+  auto *http3OnlyCheck = new QCheckBox(&dialog);
+  http3OnlyCheck->setChecked(http3Only_);
+  http3OnlyCheck->setEnabled(!running && http3Check->isChecked());
+  http3OnlyCheck->setToolTip(
+      tr("Never fall back to TCP: when HTTP/3 does not work, connections "
+         "fail. Needs a wss:// gateway, and cannot be used together with an "
+         "upstream proxy."));
+  form->addRow(tr("HTTP/3 only (no TCP fallback)"), http3OnlyCheck);
+  connect(http3Check, &QCheckBox::toggled, http3OnlyCheck,
+          [http3OnlyCheck, running](bool checked) {
+            http3OnlyCheck->setEnabled(!running && checked);
+          });
+
   auto *authModeCombo = new QComboBox(&dialog);
   authModeCombo->addItem(tr("Token (recommended)"), "token");
   authModeCombo->addItem(tr("Basic (compatibility, being phased out)"),
@@ -944,7 +957,8 @@ void MainWindow::showSettingsDialog() {
       QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   layout->addWidget(buttons);
   connect(buttons, &QDialogButtonBox::accepted, &dialog,
-          [&dialog, upstreamProxyCheck, upstreamProxyEdit]() {
+          [&dialog, upstreamProxyCheck, upstreamProxyEdit, http3Check,
+           http3OnlyCheck]() {
     // Only an enabled proxy has to be usable; a disabled one keeps whatever
     // was typed.
     const QString text = upstreamProxyEdit->text().trimmed();
@@ -955,6 +969,15 @@ void MainWindow::showSettingsDialog() {
           tr("The upstream proxy must be a URL such as "
              "http://host:port, socks5h://host:port or socks5://host:port."));
       upstreamProxyEdit->setFocus();
+      return;
+    }
+    if (http3Check->isChecked() && http3OnlyCheck->isChecked() &&
+        upstreamProxyCheck->isChecked()) {
+      QMessageBox::warning(
+          &dialog, tr("ws2tcp-local"),
+          tr("HTTP/3 only cannot be used together with an upstream proxy, "
+             "because QUIC cannot pass through one."));
+      http3OnlyCheck->setFocus();
       return;
     }
     dialog.accept();
@@ -968,6 +991,7 @@ void MainWindow::showSettingsDialog() {
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
     insecure_ = insecureCheck->isChecked();
     http3_ = http3Check->isChecked();
+    http3Only_ = http3OnlyCheck->isChecked();
     authMode_ = authModeCombo->currentData().toString();
     closeBehavior_ = closeBehaviorCombo->currentData().toString();
     sessionCloseBehavior_.clear();
@@ -1490,6 +1514,8 @@ QByteArray MainWindow::buildConfigJson(const QString &customRulesPath) const {
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
   config["http3"] = http3_;
+  // http3_only implies http3, so it only applies while HTTP/3 is on.
+  config["http3_only"] = http3_ && http3Only_;
   config["auth_mode"] = authMode_;
   if (upstreamProxyEnabled_ && !upstreamProxy_.isEmpty()) {
     config["upstream_proxy"] = upstreamProxy_;
@@ -1690,6 +1716,7 @@ void MainWindow::loadUserSettings() {
 
   insecure_ = settings.value("proxy/insecure", insecure_).toBool();
   http3_ = settings.value("proxy/http3", http3_).toBool();
+  http3Only_ = settings.value("proxy/http3_only", http3Only_).toBool();
   checkUpdatesOnStartup_ =
       settings.value("ui/check_updates_on_startup", true).toBool();
   const QString upstreamProxy =
@@ -1740,6 +1767,7 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("ui/language", language_);
   settings.setValue("proxy/insecure", insecure_);
   settings.setValue("proxy/http3", http3_);
+  settings.setValue("proxy/http3_only", http3Only_);
   settings.setValue("ui/check_updates_on_startup", checkUpdatesOnStartup_);
   settings.setValue("proxy/auth_mode", authMode_);
   settings.setValue("proxy/upstream_proxy", upstreamProxy_);

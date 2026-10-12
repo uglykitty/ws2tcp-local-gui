@@ -5,6 +5,17 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.8.0] - 2026-10-12
+
+### 🚀 Features
+
+- *(settings)* Set the gfwlist URLs, one per line
+
+### 💼 Other
+
+- Update ws2tcp-local to 0.10.0
+- Update ws2tcp-local-ffi to 0.8.0
+
 ## [0.7.1] - 2026-10-10
 
 ### 🚜 Refactor

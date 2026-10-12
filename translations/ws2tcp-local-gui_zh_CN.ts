@@ -265,6 +265,22 @@
         <translation>规则刷新间隔(秒)</translation>
     </message>
     <message>
+        <source>Where to download the gfwlist from in auto proxy mode, one URL per line, tried in order until one works. URLs here replace the built-in ones, which are shown when the box is empty.</source>
+        <translation>自动代理模式下下载 gfwlist 的地址，每行一个，按顺序尝试，直到有一个可用。这里填写的地址会替换内置地址；留空时显示的就是内置地址。</translation>
+    </message>
+    <message>
+        <source>Use built-in</source>
+        <translation>使用内置地址</translation>
+    </message>
+    <message>
+        <source>gfwlist URLs</source>
+        <translation>gfwlist 地址</translation>
+    </message>
+    <message>
+        <source>%1 is not a gfwlist URL. Each line must be an http:// or https:// URL.</source>
+        <translation>%1 不是有效的 gfwlist 地址。每行都必须是 http:// 或 https:// 开头的 URL。</translation>
+    </message>
+    <message>
         <location filename="../src/MainWindow.cpp" line="480"/>
         <source>Skip TLS certificate verification (insecure)</source>
         <translation>跳过 TLS 证书验证(不安全)</translation>

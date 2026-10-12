@@ -21,6 +21,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMenuBar>
@@ -32,6 +33,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPen>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
 #include <QSettings>
@@ -387,6 +389,25 @@ QString decodeWslOutput(const QByteArray &data) {
   return QString::fromUtf8(data);
 }
 #endif
+
+// A gfwlist source the core accepts: an http:// or https:// URL with a host.
+bool isGfwlistUrl(const QString &text) {
+  const QUrl url(text, QUrl::StrictMode);
+  return url.isValid() && !url.host().isEmpty() &&
+         (url.scheme() == "http" || url.scheme() == "https");
+}
+
+// The non-blank lines of text, trimmed.
+QStringList nonBlankLines(const QString &text) {
+  QStringList lines;
+  for (const QString &line : text.split('\n')) {
+    const QString trimmed = line.trimmed();
+    if (!trimmed.isEmpty()) {
+      lines << trimmed;
+    }
+  }
+  return lines;
+}
 
 }  // namespace
 
@@ -857,6 +878,30 @@ void MainWindow::showSettingsDialog() {
   refreshIntervalSpin->setEnabled(!running);
   form->addRow(tr("Rule refresh seconds"), refreshIntervalSpin);
 
+  auto *gfwlistUrlsEdit = new QPlainTextEdit(&dialog);
+  gfwlistUrlsEdit->setPlainText(gfwlistUrls_.join('\n'));
+  gfwlistUrlsEdit->setPlaceholderText(
+      QString::fromUtf8(ws2tcp_default_gfwlist_urls()));
+  gfwlistUrlsEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+  gfwlistUrlsEdit->setTabChangesFocus(true);
+  gfwlistUrlsEdit->setFixedHeight(
+      gfwlistUrlsEdit->fontMetrics().lineSpacing() * 4 +
+      2 * gfwlistUrlsEdit->frameWidth() + 8);
+  gfwlistUrlsEdit->setMinimumWidth(320);
+  gfwlistUrlsEdit->setEnabled(!running);
+  gfwlistUrlsEdit->setToolTip(
+      tr("Where to download the gfwlist from in auto proxy mode, one URL per "
+         "line, tried in order until one works. URLs here replace the built-in "
+         "ones, which are shown when the box is empty."));
+  auto *gfwlistDefaultsButton = new QPushButton(tr("Use built-in"), &dialog);
+  gfwlistDefaultsButton->setEnabled(!running);
+  connect(gfwlistDefaultsButton, &QPushButton::clicked, gfwlistUrlsEdit,
+          &QPlainTextEdit::clear);
+  auto *gfwlistUrlsLayout = new QVBoxLayout();
+  gfwlistUrlsLayout->addWidget(gfwlistUrlsEdit);
+  gfwlistUrlsLayout->addWidget(gfwlistDefaultsButton, 0, Qt::AlignLeft);
+  form->addRow(tr("gfwlist URLs"), gfwlistUrlsLayout);
+
   auto *insecureCheck = new QCheckBox(&dialog);
   insecureCheck->setChecked(insecure_);
   insecureCheck->setEnabled(!running);
@@ -949,8 +994,19 @@ void MainWindow::showSettingsDialog() {
       QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
   layout->addWidget(buttons);
   connect(buttons, &QDialogButtonBox::accepted, &dialog,
-          [&dialog, upstreamProxyCheck, upstreamProxyEdit,
-           http3Combo]() {
+          [&dialog, upstreamProxyCheck, upstreamProxyEdit, http3Combo,
+           gfwlistUrlsEdit]() {
+    for (const QString &url : nonBlankLines(gfwlistUrlsEdit->toPlainText())) {
+      if (!isGfwlistUrl(url)) {
+        QMessageBox::warning(
+            &dialog, tr("ws2tcp-local"),
+            tr("%1 is not a gfwlist URL. Each line must be an http:// or "
+               "https:// URL.")
+                .arg(url));
+        gfwlistUrlsEdit->setFocus();
+        return;
+      }
+    }
     // Only an enabled proxy has to be usable; a disabled one keeps whatever
     // was typed.
     const QString text = upstreamProxyEdit->text().trimmed();
@@ -981,6 +1037,7 @@ void MainWindow::showSettingsDialog() {
     upstreamProxy_ = upstreamProxyEdit->text().trimmed();
     upstreamProxyEnabled_ = upstreamProxyCheck->isChecked();
     refreshIntervalSeconds_ = refreshIntervalSpin->value();
+    gfwlistUrls_ = nonBlankLines(gfwlistUrlsEdit->toPlainText());
     insecure_ = insecureCheck->isChecked();
     const QString http3Mode = http3Combo->currentData().toString();
     const bool http3Changed = http3Mode_ != http3Mode;
@@ -1522,6 +1579,9 @@ QByteArray MainWindow::buildConfigJson(const QString &customRulesPath) const {
   config["gateway"] = gatewayEdit_->text().trimmed();
   config["buffer_size"] = bufferSize_;
   config["rule_refresh_interval_secs"] = refreshIntervalSeconds_;
+  if (!gfwlistUrls_.isEmpty()) {
+    config["gfwlist_urls"] = QJsonArray::fromStringList(gfwlistUrls_);
+  }
   config["proxy_mode"] = proxyModeCombo_->currentText();
   config["insecure"] = insecure_;
   config["http3"] = http3Mode_;
@@ -1702,6 +1762,12 @@ void MainWindow::loadUserSettings() {
   if (refreshInterval >= 1 && refreshInterval <= 24 * 60 * 60) {
     refreshIntervalSeconds_ = refreshInterval;
   }
+  for (const QString &url :
+       settings.value("proxy/gfwlist_urls").toStringList()) {
+    if (isGfwlistUrl(url.trimmed())) {
+      gfwlistUrls_ << url.trimmed();
+    }
+  }
 
   const QString proxyMode =
       settings.value("proxy/proxy_mode", proxyModeCombo_->currentText())
@@ -1781,6 +1847,7 @@ void MainWindow::saveUserSettings() const {
   settings.setValue("proxy/buffer_size", bufferSize_);
   settings.setValue("proxy/rule_refresh_interval_secs",
                     refreshIntervalSeconds_);
+  settings.setValue("proxy/gfwlist_urls", gfwlistUrls_);
   settings.setValue("proxy/proxy_mode", proxyModeCombo_->currentText());
   settings.setValue("ui/close_behavior", closeBehavior_);
   settings.setValue("ui/language", language_);

@@ -154,6 +154,10 @@ class MainWindow final : public QMainWindow {
   bool userSettingsCleared_ = false;
   int bufferSize_ = 16 * 1024;
   int refreshIntervalSeconds_ = 60;
+  // Where the core downloads the gfwlist from, tried in order. Empty means
+  // the core's built-in list (ws2tcp_default_gfwlist_urls); a list here
+  // replaces it.
+  QStringList gfwlistUrls_;
   bool insecure_ = false;
   // How gateway tunnels use HTTP/3 (QUIC): "off", "on" (falling back to TCP)
   // or "only" (a failing HTTP/3 fails the connection).

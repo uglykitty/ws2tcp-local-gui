@@ -68,10 +68,9 @@ git submodule update --init --recursive
 ```
 
 CMake uses Corrosion to build the CLI from `ws2tcp-local` and builds the Rust
-FFI crate from `ws2tcp-local-ffi` with Cargo. If the FFI crate is missing,
-CMake asks Cargo to fetch `ws2tcp-local-ffi` from crates.io and builds the
-downloaded registry source. Cargo also downloads the crates' transitive
-crates.io dependencies.
+FFI crate from `ws2tcp-local-ffi` with Cargo. Configuring fails when either
+submodule is missing; nothing is fetched from crates.io in their place. Cargo
+still downloads the crates' own crates.io dependencies.
 
 ```bash
 cmake -S . -B build
@@ -195,15 +194,6 @@ To build the FFI crate from another checkout, pass its path:
 cmake -S . -B build \
   -DWS2TCP_LOCAL_FFI_SOURCE_DIR=/path/to/ws2tcp-local-ffi \
   -DWS2TCP_LOCAL_FFI_INCLUDE_DIR=/path/to/ws2tcp-local-ffi/include
-cmake --build build
-```
-
-To fetch a different published FFI crate version from crates.io:
-
-```bash
-cmake -S . -B build \
-  -DWS2TCP_LOCAL_FFI_SOURCE_DIR=/path/that/does/not/exist \
-  -DWS2TCP_LOCAL_FFI_CRATE_VERSION=0.1.4
 cmake --build build
 ```
 

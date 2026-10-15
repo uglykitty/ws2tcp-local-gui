@@ -56,6 +56,8 @@
 #endif
 
 #include <cmath>
+#include <string>
+#include <utility>
 
 #ifdef WS2TCP_SYSTEM_PROXY_AVAILABLE
 #include "SystemProxy.h"
@@ -1936,22 +1938,49 @@ void MainWindow::enableWslMirroredNetworking() {
   applyMirroredNetworking();
 }
 
-bool MainWindow::isWslUsable() {
-  // wsl.exe's own text output is unreliable to parse (UTF-16LE with no
-  // console attached, and inconsistent across Windows versions/states --
-  // see the WSL menu's commit history), but --status is a fast, cheap
-  // query (unlike actually trying to launch a distro) whose exit code is
-  // a trustworthy signal on its own: 0 once WSL is installed and has a
-  // usable default distro, non-zero otherwise.
-  QProcess process;
-  process.start(QStringLiteral("wsl.exe"), {QStringLiteral("--status")});
-  if (!process.waitForFinished(5000)) {
-    process.kill();
-    process.waitForFinished();
-    return false;
+MainWindow::WslState MainWindow::detectWslState() {
+  // Only registry reads and one file check; no wsl.exe process. Its text
+  // output is unreliable to parse (UTF-16LE with no console attached, and
+  // inconsistent across Windows versions), and `wsl --status` exits 0 even
+  // when no distribution is installed. docs/wsl-detection.md has what each
+  // signal was measured to be in every state.
+  QSettings lxss(
+      QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\"
+                     "CurrentVersion\\Lxss"),
+      QSettings::NativeFormat);
+
+  // Checked first: a registered default distribution is all that "ready"
+  // needs, and WSL builds without C:\Program Files\WSL still register
+  // their distributions here.
+  const QString defaultDistro =
+      lxss.value(QStringLiteral("DefaultDistribution")).toString();
+  if (!defaultDistro.isEmpty() &&
+      !lxss.value(defaultDistro + QStringLiteral("/DistributionName"))
+           .toString()
+           .isEmpty()) {
+    return WslState::Ready;
   }
-  return process.exitStatus() == QProcess::NormalExit &&
-         process.exitCode() == 0;
+
+  // Created by the component install and removed again by the Windows
+  // restart that it asks for.
+  if (lxss.childGroups().contains(QStringLiteral("InstallStatus"))) {
+    return WslState::RestartPending;
+  }
+
+  // The stub in System32 is identical before and after the install; only the
+  // real package adds this file.
+  QString programFiles = qEnvironmentVariable("ProgramW6432");
+  if (programFiles.isEmpty()) {
+    programFiles = qEnvironmentVariable("ProgramFiles");
+  }
+  if (!QFileInfo::exists(programFiles + QStringLiteral("/WSL/wsl.exe"))) {
+    return WslState::NotInstalled;
+  }
+  return WslState::NoDistribution;
+}
+
+bool MainWindow::isWslUsable() {
+  return detectWslState() == WslState::Ready;
 }
 
 bool MainWindow::confirmQuitDuringWslOperation() {
@@ -2002,10 +2031,12 @@ void MainWindow::promptRestartAfterWslInstall() {
   messageBox.setIcon(QMessageBox::Question);
   messageBox.setWindowTitle(tr("ws2tcp-local"));
   messageBox.setText(
-      tr("WSL has been installed successfully.\n\n"
-         "Windows must be restarted before WSL can be used. Restart now or "
-         "later?\n\n"
-         "If you restart now, save your work in other applications first."));
+      tr("The WSL components have been installed.\n\n"
+         "Windows must be restarted before WSL can be used. After "
+         "restarting, choose Install WSL again to install the Ubuntu "
+         "distribution.\n\n"
+         "Restart now or later? If you restart now, save your work in other "
+         "applications first."));
   auto *restartNowButton =
       messageBox.addButton(tr("Restart now"), QMessageBox::AcceptRole);
   auto *restartLaterButton =
@@ -2180,14 +2211,12 @@ void MainWindow::runWslScript(const QString &label,
 }
 
 void MainWindow::installWsl() {
-  // wsl --install needs to enable Windows features and can install the WSL
-  // platform package, which requires elevation; run unelevated (as this
-  // app normally is), it was observed to bail out immediately with a
-  // generic "not installed" message instead of actually attempting that.
-  // ShellExecuteEx's "runas" verb elevates it, at the cost of not being
-  // able to stream its output back into our own (non-elevated) log panel
-  // the way runWslCommand does -- so it gets its own visible console
-  // instead, and we just poll for its exit code.
+  // Installing is two stages with a Windows restart in between: the WSL
+  // components first, then a distribution (see docs/wsl-detection.md).
+  // `wsl --install` alone does either one depending on the machine and
+  // reports the same exit code for both, so each stage is requested
+  // explicitly and its outcome is judged by detecting the state again, not
+  // by the exit code.
   if (wslProcess_ != nullptr) {
     const QString message =
         tr("Install WSL: another WSL command is already running.");
@@ -2196,22 +2225,119 @@ void MainWindow::installWsl() {
     return;
   }
 
-  if (isWslUsable()) {
-    const QString message = tr("Install WSL: already installed and ready.");
-    logMessage(message);
-    showInfo(message);
-    return;
+  switch (detectWslState()) {
+    case WslState::Ready: {
+      const QString message = tr("Install WSL: already installed and ready.");
+      logMessage(message);
+      showInfo(message);
+      return;
+    }
+    case WslState::RestartPending:
+      logMessage(tr("Install WSL: Windows must be restarted first."));
+      promptRestartAfterWslInstall();
+      return;
+    case WslState::NoDistribution:
+      installWslDistribution();
+      return;
+    case WslState::NotInstalled:
+      break;
   }
 
+  logMessage(tr("Install WSL: installing the WSL components..."));
+  runElevatedWsl(QStringLiteral("--install --no-distribution"),
+                 [this](unsigned long exitCode) {
+                   // 3010 is ERROR_SUCCESS_REBOOT_REQUIRED; either way the
+                   // real outcome is read from the state below.
+                   if (exitCode != 0 && exitCode != 3010) {
+                     const QString message =
+                         tr("Install WSL: failed (exit code %1). Check the "
+                            "console window it opened for details.")
+                             .arg(exitCode);
+                     logMessage(message);
+                     showError(message);
+                     return;
+                   }
+                   finishWslComponentInstall();
+                 });
+}
+
+void MainWindow::finishWslComponentInstall() {
+  switch (detectWslState()) {
+    case WslState::RestartPending:
+      logMessage(tr("Install WSL: components installed."));
+      promptRestartAfterWslInstall();
+      break;
+    case WslState::NoDistribution:
+      logMessage(tr("Install WSL: components installed."));
+      installWslDistribution();
+      break;
+    case WslState::Ready: {
+      const QString message = tr("Install WSL: already installed and ready.");
+      logMessage(message);
+      showInfo(message);
+      break;
+    }
+    case WslState::NotInstalled: {
+      const QString message =
+          tr("Install WSL: the WSL components were not found after the "
+             "install finished. Check the console window it opened for "
+             "details.");
+      logMessage(message);
+      showError(message);
+      break;
+    }
+  }
+}
+
+void MainWindow::installWslDistribution() {
+  logMessage(tr("Install WSL: installing the Ubuntu distribution..."));
+  runElevatedWsl(
+      QStringLiteral("--install -d Ubuntu --no-launch"),
+      [this](unsigned long exitCode) {
+        // It exits 0 without installing anything while a restart is still
+        // pending, so only the detected state says whether it worked.
+        switch (detectWslState()) {
+          case WslState::Ready:
+            logMessage(tr("Install WSL: done."));
+            showInfo(tr("WSL and the Ubuntu distribution are installed and "
+                        "ready."));
+            break;
+          case WslState::RestartPending:
+            promptRestartAfterWslInstall();
+            break;
+          default: {
+            const QString message =
+                tr("Install WSL: the Ubuntu distribution was not installed "
+                   "(exit code %1). Check the console window it opened for "
+                   "details.")
+                    .arg(exitCode);
+            logMessage(message);
+            showError(message);
+            break;
+          }
+        }
+      });
+}
+
+void MainWindow::runElevatedWsl(
+    const QString &parameters, std::function<void(unsigned long)> onFinished) {
+  // Installing needs elevation (it enables Windows features and installs the
+  // WSL package); run unelevated, as this app normally is, wsl.exe was
+  // observed to bail out immediately with a generic "not installed" message
+  // instead of attempting that. ShellExecuteEx's "runas" verb elevates it, at
+  // the cost of not being able to stream its output back into our own
+  // (non-elevated) log panel the way runWslCommand does -- so it gets its own
+  // visible console instead, and we just poll for its exit code.
   logMessage(tr("Install WSL: requesting administrator privileges..."));
   wslMenu_->menuAction()->setEnabled(false);
 
+  const std::wstring wideParameters = parameters.toStdWString();
   SHELLEXECUTEINFOW info = {};
   info.cbSize = sizeof(info);
   info.fMask = SEE_MASK_NOCLOSEPROCESS;
   info.lpVerb = L"runas";
   info.lpFile = L"wsl.exe";
-  info.lpParameters = L"--install";
+  info.lpParameters = wideParameters.c_str();
   info.nShow = SW_SHOWNORMAL;
 
   if (!ShellExecuteExW(&info)) {
@@ -2233,30 +2359,19 @@ void MainWindow::installWsl() {
   const HANDLE processHandle = info.hProcess;
   auto *watcher = new QTimer(this);
   watcher->setInterval(500);
-  connect(watcher, &QTimer::timeout, this, [this, processHandle, watcher]() {
-    DWORD exitCode = STILL_ACTIVE;
-    if (!GetExitCodeProcess(processHandle, &exitCode) ||
-        exitCode == STILL_ACTIVE) {
-      return;
-    }
-    watcher->stop();
-    watcher->deleteLater();
-    CloseHandle(processHandle);
-    wslMenu_->menuAction()->setEnabled(true);
-    // 3010 is ERROR_SUCCESS_REBOOT_REQUIRED: the install worked but
-    // Windows has to restart first, which is the expected outcome here.
-    if (exitCode == 0 || exitCode == 3010) {
-      logMessage(tr("Install WSL: done."));
-      promptRestartAfterWslInstall();
-    } else {
-      const QString message =
-          tr("Install WSL: failed (exit code %1). Check the console "
-             "window it opened for details.")
-              .arg(exitCode);
-      logMessage(message);
-      showError(message);
-    }
-  });
+  connect(watcher, &QTimer::timeout, this,
+          [this, processHandle, watcher, onFinished = std::move(onFinished)]() {
+            DWORD exitCode = STILL_ACTIVE;
+            if (!GetExitCodeProcess(processHandle, &exitCode) ||
+                exitCode == STILL_ACTIVE) {
+              return;
+            }
+            watcher->stop();
+            watcher->deleteLater();
+            CloseHandle(processHandle);
+            wslMenu_->menuAction()->setEnabled(true);
+            onFinished(exitCode);
+          });
   watcher->start();
 }
 

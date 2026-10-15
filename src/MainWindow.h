@@ -95,8 +95,20 @@ class MainWindow final : public QMainWindow {
   void showEnvProxyRestartNotice();
   void maybePromptWslMirroredNetworking();
   void applyMirroredNetworking();
+  // The four stages of a WSL install, see docs/wsl-detection.md.
+  enum class WslState {
+    NotInstalled,    // A: no WSL package
+    RestartPending,  // B1: package installed, Windows restart still pending
+    NoDistribution,  // B2: package installed and active, no distribution
+    Ready,           // C: at least one distribution registered
+  };
+  WslState detectWslState();
   void promptRestartAfterWslInstall();
   bool isWslUsable();
+  void runElevatedWsl(const QString &parameters,
+                      std::function<void(unsigned long)> onFinished);
+  void installWslDistribution();
+  void finishWslComponentInstall();
   void showWslNotReadyMessage();
   bool confirmQuitDuringWslOperation();
   void runWslCommand(const QString &label, const QStringList &arguments,

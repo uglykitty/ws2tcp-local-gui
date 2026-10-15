@@ -691,6 +691,124 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>&amp;WSL</source>
+        <translation>WSL(&amp;W)</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Node.js (via nvm) in WSL</source>
+        <translation>在 WSL 中安装 Node.js(通过 nvm)</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install opencode CLI in WSL</source>
+        <translation>在 WSL 中安装 opencode CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Codex CLI in WSL</source>
+        <translation>在 WSL 中安装 Codex CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Claude Code CLI in WSL</source>
+        <translation>在 WSL 中安装 Claude Code CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Node.js (nvm)</source>
+        <translation>安装 Node.js(nvm)</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install opencode CLI</source>
+        <translation>安装 opencode CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Codex CLI</source>
+        <translation>安装 Codex CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Claude Code CLI</source>
+        <translation>安装 Claude Code CLI</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Show system proxy restart reminder</source>
+        <translation>显示系统代理重启提醒</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Show WSL restart reminder</source>
+        <translation>显示 WSL 重启提醒</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Prompt to enable WSL mirrored networking on startup</source>
+        <translation>启动时提示启用 WSL 的 Mirrored 网络模式</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>A WSL operation is still running. Quitting now will interrupt it and may leave it partially installed.
+
+Quit anyway?</source>
+        <translation>WSL 操作仍在进行。现在退出会中断它,可能导致只安装了一部分。
+
+仍要退出吗?</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL is not installed or not ready. Use &quot;Install WSL&quot; in the WSL menu first.</source>
+        <translation>WSL 尚未安装或尚未就绪。请先使用 WSL 菜单中的&quot;安装 WSL&quot;。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL is not using mirrored networking mode. Switch to mirrored mode now?
+
+This updates .wslconfig; WSL will need a restart (&quot;wsl --shutdown&quot;) to apply it.</source>
+        <translation>WSL 当前没有使用 mirrored 网络模式。现在切换为 mirrored 模式吗?
+
+这会修改 .wslconfig;需要重启 WSL(运行 &quot;wsl --shutdown&quot;)才能生效。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Don't ask again</source>
+        <translation>不再提示</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: another WSL command is already running.</source>
+        <translation>%1:已有另一个 WSL 命令正在运行。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: starting...</source>
+        <translation>%1:正在启动...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: done.</source>
+        <translation>%1:完成。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: failed (exit code %2).</source>
+        <translation>%1:失败(退出码 %2)。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: failed to start (%2).</source>
+        <translation>%1:无法启动(%2)。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>%1: bundled script %2 is missing or empty.</source>
+        <translation>%1:内置脚本 %2 缺失或为空。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
         <source>The WSL components have been installed.
 
 Windows must be restarted before WSL can be used. After restarting, choose Install WSL again to install the Ubuntu distribution.

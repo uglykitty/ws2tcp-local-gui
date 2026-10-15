@@ -591,19 +591,6 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>WSL has been installed successfully.
-
-Windows must be restarted before WSL can be used. Restart now or later?
-
-If you restart now, save your work in other applications first.</source>
-        <translation>WSL 已安装成功。
-
-需要重启 Windows 后才能使用 WSL。请选择立即重启还是稍后重启。
-
-如果立即重启,请先保存其他应用程序中的工作。</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Restart now</source>
         <translation>立即重启</translation>
     </message>
@@ -626,6 +613,94 @@ If you restart now, save your work in other applications first.</source>
         <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Install WSL: failed to restart Windows. Please restart it manually.</source>
         <translation>安装 WSL:重启 Windows 失败,请手动重启。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL</source>
+        <translation>安装 WSL</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: another WSL command is already running.</source>
+        <translation>安装 WSL:已有另一个 WSL 命令正在运行。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: already installed and ready.</source>
+        <translation>安装 WSL:已安装,可以使用。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: Windows must be restarted first.</source>
+        <translation>安装 WSL:请先重启 Windows。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: installing the WSL components...</source>
+        <translation>安装 WSL:正在安装 WSL 组件...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: components installed.</source>
+        <translation>安装 WSL:组件已安装。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: the WSL components were not found after the install finished. Check the console window it opened for details.</source>
+        <translation>安装 WSL:安装结束后未检测到 WSL 组件。请查看它打开的控制台窗口了解详情。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: installing the Ubuntu distribution...</source>
+        <translation>安装 WSL:正在安装 Ubuntu 发行版...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: the Ubuntu distribution was not installed (exit code %1). Check the console window it opened for details.</source>
+        <translation>安装 WSL:Ubuntu 发行版未能安装(退出码 %1)。请查看它打开的控制台窗口了解详情。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: done.</source>
+        <translation>安装 WSL:完成。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL and the Ubuntu distribution are installed and ready.</source>
+        <translation>WSL 和 Ubuntu 发行版已安装,可以使用。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: requesting administrator privileges...</source>
+        <translation>安装 WSL:正在请求管理员权限...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: cancelled (UAC prompt was declined).</source>
+        <translation>安装 WSL:已取消(UAC 提示被拒绝)。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: failed to start elevated (Windows error %1).</source>
+        <translation>安装 WSL:无法以管理员权限启动(Windows 错误 %1)。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: failed (exit code %1). Check the console window it opened for details.</source>
+        <translation>安装 WSL:安装失败(退出码 %1)。请查看它打开的控制台窗口了解详情。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>The WSL components have been installed.
+
+Windows must be restarted before WSL can be used. After restarting, choose Install WSL again to install the Ubuntu distribution.
+
+Restart now or later? If you restart now, save your work in other applications first.</source>
+        <translation>已安装 WSL 组件。
+
+需要重启 Windows 后才能使用 WSL。重启后请再次选择&quot;安装 WSL&quot;,以安装 Ubuntu 发行版。
+
+请选择立即重启还是稍后重启。如果立即重启,请先保存其他应用程序中的工作。</translation>
     </message>
     <message>
         <source>Edit...</source>

@@ -148,20 +148,24 @@ only a distribution is installed) was **(not measured)**.
   run from an SSH session. They work when started in the interactive desktop
   session (a scheduled task created with `/it` was used for the tests), which
   is also where the GUI's `ShellExecuteEx` "runas" launch runs. Running
-  `installWsl()` itself on a VM desktop was **(not measured)**.
+  the install menu items themselves on a VM desktop was **(not measured)**.
 - The install therefore works as two stages with a restart in between:
   1. `wsl --install --no-distribution` (A to B1). Exit code 0; a restart is
      required afterwards (B1 to B2).
-  2. `wsl --install -d Ubuntu --no-launch` (B2 to C). Exit code 0.
-- `MainWindow::installWsl()` follows that, choosing the action from
-  `detectWslState()`:
+  2. `wsl --install -d <Name> --no-launch` (B2 to C). Exit code 0. It was
+     measured with `<Name>` = `Ubuntu` only.
+- The WSL menu has one item per stage, and each one checks `detectWslState()`
+  first:
 
-  | State | Action |
-  | --- | --- |
-  | C | Nothing to do; reports that WSL is ready. |
-  | B1 | Does not install anything; asks to restart Windows (now or later). |
-  | A | Runs stage 1 elevated. Afterwards detects the state again: B1 asks to restart; B2 continues with stage 2; anything else is an error. |
-  | B2 | Runs stage 2 elevated. Afterwards detects the state again: only C counts as success, whatever the exit code was. |
+  | Menu item | A | B1 | B2 | C |
+  | --- | --- | --- | --- | --- |
+  | **Install WSL Components** (`MainWindow::installWslComponents()`) | Runs stage 1 elevated | Asks to restart Windows (now or later) | Says the components are already installed | Says the components are already installed |
+  | **Install Linux Distribution...** (`MainWindow::installWslDistribution()`) | Error: install the components first | Asks to restart Windows (now or later) | Asks which distribution, then runs stage 2 elevated | Says a distribution is already installed |
+
+  After stage 1 the state is detected again: B1 asks to restart, B2 tells the
+  user to use "Install Linux Distribution", anything else (A) is an error.
+  After stage 2 only C counts as success, whatever the exit code was. The
+  distribution is chosen from the predefined list below.
 
   The exit codes are only used to tell failure (neither 0 nor 3010) from
   "finished"; success is always decided by detecting the state again.
@@ -170,3 +174,45 @@ only a distribution is installed) was **(not measured)**.
   put a short timeout on it.
 - Step 2 downloads the distribution list from `raw.githubusercontent.com`
   before the distribution itself, so it needs that host to be reachable.
+
+## Predefined distributions
+
+`src/WslDistributions.h` holds the list the "Install Linux Distribution..."
+dialog offers; the selected `Name` is what goes after `wsl --install -d`. Only
+these predefined names are ever put on the `wsl.exe` command line.
+
+The list is copied from the `ModernDistributions` section of
+<https://raw.githubusercontent.com/microsoft/WSL/master/distributions/DistributionInfo.json>,
+the file `wsl.exe` reads for `wsl --list --online`, as fetched on 2026-10-16.
+That file also has an older `Distributions` section (Ubuntu, Debian, Kali,
+openSUSE Tumbleweed, SUSE Linux Enterprise 15 SP6 and three Oracle Linux
+versions); only the modern one is used here, and its top-level `Default` is
+`Ubuntu`. Microsoft changes the file over time, so the list will go stale: to
+refresh it, fetch the file again and copy the `Name` and `FriendlyName` pairs.
+
+| `Name` | Friendly name | x64 | ARM64 |
+| --- | --- | --- | --- |
+| `Ubuntu` | Ubuntu | yes | yes |
+| `Ubuntu-26.04` | Ubuntu 26.04 LTS | yes | yes |
+| `Ubuntu-24.04` | Ubuntu 24.04 LTS | yes | yes |
+| `Ubuntu-22.04` | Ubuntu 22.04 LTS | yes | yes |
+| `Ubuntu-20.04` | Ubuntu 20.04 LTS | yes | yes |
+| `openSUSE-Tumbleweed` | openSUSE Tumbleweed | yes | yes |
+| `openSUSE-Leap-16.0` | openSUSE Leap 16.0 | yes | yes |
+| `RLCPlus-9` | Rocky Linux Plus 9 (CIQ) | yes | yes |
+| `RLCPlus-10` | Rocky Linux Plus 10 (CIQ) | yes | yes |
+| `SUSE-Linux-Enterprise-15-SP7` | SUSE Linux Enterprise 15 SP7 | yes | no |
+| `SUSE-Linux-Enterprise-16.0` | SUSE Linux Enterprise 16.0 | yes | no |
+| `kali-linux` | Kali Linux Rolling | yes | yes |
+| `Debian` | Debian GNU/Linux | yes | yes |
+| `AlmaLinux-8` | AlmaLinux OS 8 | yes | yes |
+| `AlmaLinux-9` | AlmaLinux OS 9 | yes | yes |
+| `AlmaLinux-Kitten-10` | AlmaLinux OS Kitten 10 | yes | yes |
+| `AlmaLinux-10` | AlmaLinux OS 10 | yes | yes |
+| `archlinux` | Arch Linux | yes | no |
+| `FedoraLinux-44` | Fedora Linux 44 | yes | yes |
+| `FedoraLinux-43` | Fedora Linux 43 | yes | yes |
+| `eLxr` | eLxr 12.12.0.0 GNU/Linux | yes | no |
+
+Installing a distribution other than `Ubuntu` was **(not measured)**; the names
+are taken from the file as published.

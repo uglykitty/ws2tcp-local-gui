@@ -21,6 +21,7 @@
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -64,6 +65,7 @@
 #endif
 #ifdef Q_OS_WIN
 #include "WslConfig.h"
+#include "WslDistributions.h"
 #endif
 
 namespace {
@@ -549,10 +551,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 #ifdef Q_OS_WIN
   wslMenu_ = menuBar()->addMenu(tr("&WSL"));
 
-  auto *installWslAction = wslMenu_->addAction(tr("Install WSL"));
-  installWslAction->setIcon(strokePathIcon(palette(), downloadPath));
-  connect(installWslAction, &QAction::triggered, this,
-          &MainWindow::installWsl);
+  auto *installWslComponentsAction =
+      wslMenu_->addAction(tr("Install WSL Components"));
+  installWslComponentsAction->setIcon(
+      strokePathIcon(palette(), downloadPath));
+  connect(installWslComponentsAction, &QAction::triggered, this,
+          &MainWindow::installWslComponents);
+
+  auto *installWslDistributionAction =
+      wslMenu_->addAction(tr("Install Linux Distribution..."));
+  installWslDistributionAction->setIcon(
+      strokePathIcon(palette(), downloadPath));
+  connect(installWslDistributionAction, &QAction::triggered, this,
+          &MainWindow::installWslDistribution);
 
   auto *wslMirroredAction =
       wslMenu_->addAction(tr("Set WSL Networking to Mirrored"));
@@ -1985,7 +1996,7 @@ bool MainWindow::isWslUsable() {
 
 bool MainWindow::confirmQuitDuringWslOperation() {
   // The WSL menu action is disabled for the duration of every WSL
-  // operation (see runWslCommand/installWsl), so that's a reliable single
+  // operation (see runWslCommand/runElevatedWsl), so that's a reliable single
   // signal for "something is still running" without tracking it twice.
   if (wslMenu_ == nullptr || wslMenu_->menuAction()->isEnabled()) {
     return true;
@@ -2006,8 +2017,9 @@ bool MainWindow::confirmQuitDuringWslOperation() {
 }
 
 void MainWindow::showWslNotReadyMessage() {
-  showError(tr("WSL is not installed or not ready. Use \"Install WSL\" in "
-               "the WSL menu first."));
+  showError(tr("WSL is not installed or not ready. Use \"Install WSL "
+               "Components\" and then \"Install Linux Distribution\" in the "
+               "WSL menu first."));
 }
 
 void MainWindow::applyMirroredNetworking() {
@@ -2033,8 +2045,8 @@ void MainWindow::promptRestartAfterWslInstall() {
   messageBox.setText(
       tr("The WSL components have been installed.\n\n"
          "Windows must be restarted before WSL can be used. After "
-         "restarting, choose Install WSL again to install the Ubuntu "
-         "distribution.\n\n"
+         "restarting, choose \"Install Linux Distribution\" in the WSL menu "
+         "to install a distribution.\n\n"
          "Restart now or later? If you restart now, save your work in other "
          "applications first."));
   auto *restartNowButton =
@@ -2210,18 +2222,87 @@ void MainWindow::runWslScript(const QString &label,
                script, onFinished);
 }
 
-void MainWindow::installWsl() {
-  // Installing is two stages with a Windows restart in between: the WSL
-  // components first, then a distribution (see docs/wsl-detection.md).
-  // `wsl --install` alone does either one depending on the machine and
-  // reports the same exit code for both, so each stage is requested
-  // explicitly and its outcome is judged by detecting the state again, not
-  // by the exit code.
-  if (wslProcess_ != nullptr) {
-    const QString message =
-        tr("Install WSL: another WSL command is already running.");
-    logMessage(message);
-    showError(message);
+bool MainWindow::rejectIfWslBusy() {
+  if (wslProcess_ == nullptr) {
+    return false;
+  }
+  const QString message =
+      tr("Install WSL: another WSL command is already running.");
+  logMessage(message);
+  showError(message);
+  return true;
+}
+
+// Installing is two separate stages with a Windows restart in between: the
+// WSL components first, then a distribution (see docs/wsl-detection.md).
+// `wsl --install` alone does either one depending on the machine and reports
+// the same exit code for both, so each stage is requested explicitly and its
+// outcome is judged by detecting the state again, not by the exit code.
+void MainWindow::installWslComponents() {
+  if (rejectIfWslBusy()) {
+    return;
+  }
+
+  switch (detectWslState()) {
+    case WslState::NoDistribution:
+    case WslState::Ready: {
+      const QString message =
+          tr("Install WSL: the WSL components are already installed.");
+      logMessage(message);
+      showInfo(message);
+      return;
+    }
+    case WslState::RestartPending:
+      logMessage(tr("Install WSL: Windows must be restarted first."));
+      promptRestartAfterWslInstall();
+      return;
+    case WslState::NotInstalled:
+      break;
+  }
+
+  logMessage(tr("Install WSL: installing the WSL components..."));
+  runElevatedWsl(
+      QStringLiteral("--install --no-distribution"),
+      [this](unsigned long exitCode) {
+        // 3010 is ERROR_SUCCESS_REBOOT_REQUIRED; either way the real outcome
+        // is read from the state below.
+        if (exitCode != 0 && exitCode != 3010) {
+          const QString message =
+              tr("Install WSL: failed (exit code %1). Check the console "
+                 "window it opened for details.")
+                  .arg(exitCode);
+          logMessage(message);
+          showError(message);
+          return;
+        }
+
+        switch (detectWslState()) {
+          case WslState::RestartPending:
+            logMessage(tr("Install WSL: components installed."));
+            promptRestartAfterWslInstall();
+            break;
+          case WslState::NoDistribution:
+          case WslState::Ready:
+            logMessage(tr("Install WSL: components installed."));
+            showInfo(tr("The WSL components are installed. Use \"Install "
+                        "Linux Distribution\" in the WSL menu to install a "
+                        "distribution."));
+            break;
+          case WslState::NotInstalled: {
+            const QString message =
+                tr("Install WSL: the WSL components were not found after the "
+                   "install finished. Check the console window it opened for "
+                   "details.");
+            logMessage(message);
+            showError(message);
+            break;
+          }
+        }
+      });
+}
+
+void MainWindow::installWslDistribution() {
+  if (rejectIfWslBusy()) {
     return;
   }
 
@@ -2232,84 +2313,70 @@ void MainWindow::installWsl() {
       showInfo(message);
       return;
     }
+    case WslState::NotInstalled: {
+      const QString message = tr(
+          "Install WSL: install the WSL components first (WSL menu).");
+      logMessage(message);
+      showError(message);
+      return;
+    }
     case WslState::RestartPending:
       logMessage(tr("Install WSL: Windows must be restarted first."));
       promptRestartAfterWslInstall();
       return;
     case WslState::NoDistribution:
-      installWslDistribution();
-      return;
-    case WslState::NotInstalled:
       break;
   }
 
-  logMessage(tr("Install WSL: installing the WSL components..."));
-  runElevatedWsl(QStringLiteral("--install --no-distribution"),
-                 [this](unsigned long exitCode) {
-                   // 3010 is ERROR_SUCCESS_REBOOT_REQUIRED; either way the
-                   // real outcome is read from the state below.
-                   if (exitCode != 0 && exitCode != 3010) {
-                     const QString message =
-                         tr("Install WSL: failed (exit code %1). Check the "
-                            "console window it opened for details.")
-                             .arg(exitCode);
-                     logMessage(message);
-                     showError(message);
-                     return;
-                   }
-                   finishWslComponentInstall();
-                 });
-}
-
-void MainWindow::finishWslComponentInstall() {
-  switch (detectWslState()) {
-    case WslState::RestartPending:
-      logMessage(tr("Install WSL: components installed."));
-      promptRestartAfterWslInstall();
-      break;
-    case WslState::NoDistribution:
-      logMessage(tr("Install WSL: components installed."));
-      installWslDistribution();
-      break;
-    case WslState::Ready: {
-      const QString message = tr("Install WSL: already installed and ready.");
-      logMessage(message);
-      showInfo(message);
-      break;
+  QStringList names;
+  QStringList items;
+  int defaultIndex = 0;
+  for (const WslDistribution &distribution : kWslDistributions) {
+    if (QLatin1String(distribution.name) ==
+        QLatin1String(kDefaultWslDistribution)) {
+      defaultIndex = static_cast<int>(names.size());
     }
-    case WslState::NotInstalled: {
-      const QString message =
-          tr("Install WSL: the WSL components were not found after the "
-             "install finished. Check the console window it opened for "
-             "details.");
-      logMessage(message);
-      showError(message);
-      break;
-    }
+    names.append(QString::fromLatin1(distribution.name));
+    items.append(QString::fromUtf8(distribution.friendlyName));
   }
-}
 
-void MainWindow::installWslDistribution() {
-  logMessage(tr("Install WSL: installing the Ubuntu distribution..."));
+  bool accepted = false;
+  const QString chosen = QInputDialog::getItem(
+      this, tr("Install Linux Distribution"),
+      tr("Choose the distribution to install:"), items, defaultIndex, false,
+      &accepted);
+  if (!accepted) {
+    return;
+  }
+  // Only the predefined names reach wsl.exe's command line.
+  const int index = static_cast<int>(items.indexOf(chosen));
+  if (index < 0) {
+    return;
+  }
+  const QString name = names.at(index);
+
+  logMessage(tr("Install WSL: installing the %1 distribution...").arg(chosen));
   runElevatedWsl(
-      QStringLiteral("--install -d Ubuntu --no-launch"),
-      [this](unsigned long exitCode) {
+      QStringLiteral("--install -d %1 --no-launch").arg(name),
+      [this, chosen](unsigned long exitCode) {
         // It exits 0 without installing anything while a restart is still
         // pending, so only the detected state says whether it worked.
         switch (detectWslState()) {
           case WslState::Ready:
             logMessage(tr("Install WSL: done."));
-            showInfo(tr("WSL and the Ubuntu distribution are installed and "
-                        "ready."));
+            showInfo(tr("WSL and the %1 distribution are installed and "
+                        "ready.")
+                         .arg(chosen));
             break;
           case WslState::RestartPending:
             promptRestartAfterWslInstall();
             break;
           default: {
             const QString message =
-                tr("Install WSL: the Ubuntu distribution was not installed "
-                   "(exit code %1). Check the console window it opened for "
+                tr("Install WSL: the %1 distribution was not installed "
+                   "(exit code %2). Check the console window it opened for "
                    "details.")
+                    .arg(chosen)
                     .arg(exitCode);
             logMessage(message);
             showError(message);

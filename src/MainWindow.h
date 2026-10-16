@@ -52,7 +52,8 @@ class MainWindow final : public QMainWindow {
 #endif
 #ifdef Q_OS_WIN
   void enableWslMirroredNetworking();
-  void installWsl();
+  void installWslComponents();
+  void installWslDistribution();
   void installNodeViaNvm();
   void installOpenCodeCli();
   void installCodexCli();
@@ -107,8 +108,7 @@ class MainWindow final : public QMainWindow {
   bool isWslUsable();
   void runElevatedWsl(const QString &parameters,
                       std::function<void(unsigned long)> onFinished);
-  void installWslDistribution();
-  void finishWslComponentInstall();
+  bool rejectIfWslBusy();
   void showWslNotReadyMessage();
   bool confirmQuitDuringWslOperation();
   void runWslCommand(const QString &label, const QStringList &arguments,

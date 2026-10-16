@@ -193,6 +193,7 @@ if(WIN32)
         src/WindowsSystemProxy.h
         src/WslConfig.cpp
         src/WslConfig.h
+        src/WslDistributions.h
         src/resources/app.rc)
 endif()
 

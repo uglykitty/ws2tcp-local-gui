@@ -616,11 +616,6 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>Install WSL</source>
-        <translation>安装 WSL</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Install WSL: another WSL command is already running.</source>
         <translation>安装 WSL:已有另一个 WSL 命令正在运行。</translation>
     </message>
@@ -651,23 +646,8 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>Install WSL: installing the Ubuntu distribution...</source>
-        <translation>安装 WSL:正在安装 Ubuntu 发行版...</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>Install WSL: the Ubuntu distribution was not installed (exit code %1). Check the console window it opened for details.</source>
-        <translation>安装 WSL:Ubuntu 发行版未能安装(退出码 %1)。请查看它打开的控制台窗口了解详情。</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Install WSL: done.</source>
         <translation>安装 WSL:完成。</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>WSL and the Ubuntu distribution are installed and ready.</source>
-        <translation>WSL 和 Ubuntu 发行版已安装,可以使用。</translation>
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
@@ -688,6 +668,74 @@ If the gateway is an older ws2tcp-router without token authentication, choose th
         <location filename="../src/MainWindow.cpp" line="1"/>
         <source>Install WSL: failed (exit code %1). Check the console window it opened for details.</source>
         <translation>安装 WSL:安装失败(退出码 %1)。请查看它打开的控制台窗口了解详情。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Linux Distribution...</source>
+        <translation>安装 Linux 发行版...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install Linux Distribution</source>
+        <translation>安装 Linux 发行版</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Choose the distribution to install:</source>
+        <translation>选择要安装的发行版:</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: installing the %1 distribution...</source>
+        <translation>安装 WSL:正在安装 %1 发行版...</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: the %1 distribution was not installed (exit code %2). Check the console window it opened for details.</source>
+        <translation>安装 WSL:%1 发行版未能安装(退出码 %2)。请查看它打开的控制台窗口了解详情。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL and the %1 distribution are installed and ready.</source>
+        <translation>WSL 和 %1 发行版已安装,可以使用。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>The WSL components are installed. Use &quot;Install Linux Distribution&quot; in the WSL menu to install a distribution.</source>
+        <translation>WSL 组件已安装。请使用 WSL 菜单中的&quot;安装 Linux 发行版&quot;来安装发行版。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>The WSL components have been installed.
+
+Windows must be restarted before WSL can be used. After restarting, choose &quot;Install Linux Distribution&quot; in the WSL menu to install a distribution.
+
+Restart now or later? If you restart now, save your work in other applications first.</source>
+        <translation>已安装 WSL 组件。
+
+需要重启 Windows 后才能使用 WSL。重启后请使用 WSL 菜单中的&quot;安装 Linux 发行版&quot;来安装发行版。
+
+请选择立即重启还是稍后重启。如果立即重启,请先保存其他应用程序中的工作。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL Components</source>
+        <translation>安装 WSL 组件</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: the WSL components are already installed.</source>
+        <translation>安装 WSL:WSL 组件已安装。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>Install WSL: install the WSL components first (WSL menu).</source>
+        <translation>安装 WSL:请先在 WSL 菜单中安装 WSL 组件。</translation>
+    </message>
+    <message>
+        <location filename="../src/MainWindow.cpp" line="1"/>
+        <source>WSL is not installed or not ready. Use &quot;Install WSL Components&quot; and then &quot;Install Linux Distribution&quot; in the WSL menu first.</source>
+        <translation>WSL 尚未安装或尚未就绪。请先依次使用 WSL 菜单中的&quot;安装 WSL 组件&quot;和&quot;安装 Linux 发行版&quot;。</translation>
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
@@ -760,11 +808,6 @@ Quit anyway?</source>
     </message>
     <message>
         <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>WSL is not installed or not ready. Use &quot;Install WSL&quot; in the WSL menu first.</source>
-        <translation>WSL 尚未安装或尚未就绪。请先使用 WSL 菜单中的&quot;安装 WSL&quot;。</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
         <source>WSL is not using mirrored networking mode. Switch to mirrored mode now?
 
 This updates .wslconfig; WSL will need a restart (&quot;wsl --shutdown&quot;) to apply it.</source>
@@ -806,19 +849,6 @@ This updates .wslconfig; WSL will need a restart (&quot;wsl --shutdown&quot;) to
         <location filename="../src/MainWindow.cpp" line="1"/>
         <source>%1: bundled script %2 is missing or empty.</source>
         <translation>%1:内置脚本 %2 缺失或为空。</translation>
-    </message>
-    <message>
-        <location filename="../src/MainWindow.cpp" line="1"/>
-        <source>The WSL components have been installed.
-
-Windows must be restarted before WSL can be used. After restarting, choose Install WSL again to install the Ubuntu distribution.
-
-Restart now or later? If you restart now, save your work in other applications first.</source>
-        <translation>已安装 WSL 组件。
-
-需要重启 Windows 后才能使用 WSL。重启后请再次选择&quot;安装 WSL&quot;,以安装 Ubuntu 发行版。
-
-请选择立即重启还是稍后重启。如果立即重启,请先保存其他应用程序中的工作。</translation>
     </message>
     <message>
         <source>Edit...</source>

@@ -5,6 +5,28 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.9.0] - 2026-10-16
+
+### 🚀 Features
+
+- *(wsl)* Separate menu items for the components and a distribution
+
+### 🐛 Bug Fixes
+
+- *(wsl)* Install WSL in two explicit stages, detect the state from the registry
+
+### 📚 Documentation
+
+- *(wsl)* Record how the WSL install state is detected
+- *(wsl)* Describe the two install menu items and the predefined list
+
+### 💼 Other
+
+- Require the ws2tcp-local-ffi submodule, no crates.io fallback
+- *(wsl)* Translate the install WSL messages into Chinese
+- *(wsl)* Translate the rest of the WSL menu and prompts
+- *(wsl)* Translate the split install menu and the distribution choice
+
 ## [0.8.0] - 2026-10-12
 
 ### 🚀 Features

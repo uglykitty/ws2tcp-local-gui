@@ -5,6 +5,16 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.10.0] - 2026-10-19
+
+### 🚀 Features
+
+- *(windows)* Add arm64 installer build and update channel
+
+### 💼 Other
+
+- Update ws2tcp-local to v0.11.0
+
 ## [0.9.0] - 2026-10-16
 
 ### 🚀 Features

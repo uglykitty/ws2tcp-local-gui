@@ -44,6 +44,7 @@
 #include <QStandardPaths>
 #include <QStyle>
 #include <QStatusBar>
+#include <QSysInfo>
 #include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -1366,7 +1367,12 @@ void MainWindow::runUpdateCheck(bool startup) {
 
     QString downloadUrl;
 #if defined(Q_OS_WIN)
-    downloadUrl = manifest.value(QStringLiteral("windows_url")).toString();
+    downloadUrl = manifest
+                      .value(QSysInfo::buildCpuArchitecture() ==
+                                     QLatin1String("arm64")
+                                 ? QStringLiteral("windows_arm64_url")
+                                 : QStringLiteral("windows_url"))
+                      .toString();
 #elif defined(Q_OS_MACOS)
     downloadUrl = manifest.value(QStringLiteral("macos_url")).toString();
 #endif

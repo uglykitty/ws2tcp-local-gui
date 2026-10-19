@@ -167,9 +167,9 @@ resulting DMG with `xcrun notarytool` before stapling its notarization ticket.
 
 ## GitHub Actions
 
-`build.yml` builds Windows x64 and macOS arm64 packages for pushes to `main`,
+`build.yml` builds Windows x64, Windows arm64 and macOS arm64 packages for pushes to `main`,
 pull requests, and manual runs. `release.yml` runs for `v*` tags, notarizes the
-macOS package, and publishes the Windows installer and macOS DMG together in a
+macOS package, and publishes the Windows installers and macOS DMG together in a
 single GitHub Release.
 
 Configure these repository Actions secrets before pushing a release tag:

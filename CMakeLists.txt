@@ -386,8 +386,13 @@ if(WIN32)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
         "Local WebSocket-to-TCP proxy")
     # Keep the installer file name distinct from the ws2tcp-local CLI assets.
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64)$")
+        set(WS2TCP_WINDOWS_ARCH "win-arm64")
+    else()
+        set(WS2TCP_WINDOWS_ARCH "win64")
+    endif()
     set(CPACK_PACKAGE_FILE_NAME
-        "ws2tcp-local-gui-${PROJECT_VERSION}-win64")
+        "ws2tcp-local-gui-${PROJECT_VERSION}-${WS2TCP_WINDOWS_ARCH}")
     set(CPACK_PACKAGE_INSTALL_DIRECTORY
         "ws2tcp-local")
     set(CPACK_PACKAGE_EXECUTABLES

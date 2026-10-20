@@ -45,6 +45,7 @@
 #include <QStyle>
 #include <QStatusBar>
 #include <QSysInfo>
+#include <QTimer>
 #include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -1544,8 +1545,32 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     messageBox.setDefaultButton(exitButton);
     auto *rememberCheck = new QCheckBox(tr("Remember my choice"), &messageBox);
     messageBox.setCheckBox(rememberCheck);
+
+    // Don't block forever: the prompt also shows up while the OS is shutting
+    // down, so fall back to the default (Exit) once the countdown runs out.
+    constexpr int kClosePromptTimeoutSeconds = 15;
+    int remaining = kClosePromptTimeoutSeconds;
+    bool timedOut = false;
+    const auto updateExitText = [&]() {
+      exitButton->setText(tr("Exit (%1)").arg(remaining));
+    };
+    updateExitText();
+    QTimer countdown(&messageBox);
+    countdown.setInterval(1000);
+    QObject::connect(&countdown, &QTimer::timeout, &messageBox, [&]() {
+      if (--remaining <= 0) {
+        countdown.stop();
+        timedOut = true;
+        exitButton->click();
+        return;
+      }
+      updateExitText();
+    });
+    countdown.start();
     messageBox.exec();
-    const bool rememberChoice = rememberCheck->isChecked();
+    countdown.stop();
+    // An automatic exit must not silently become the remembered choice.
+    const bool rememberChoice = rememberCheck->isChecked() && !timedOut;
 
     if (messageBox.clickedButton() == minimizeButton) {
       behavior = "tray";

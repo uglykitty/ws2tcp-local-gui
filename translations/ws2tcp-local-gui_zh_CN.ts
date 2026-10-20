@@ -366,6 +366,11 @@
         <translation>退出</translation>
     </message>
     <message>
+        <location filename="../src/MainWindow.cpp" line="1545"/>
+        <source>Exit (%1)</source>
+        <translation>退出（%1）</translation>
+    </message>
+    <message>
         <location filename="../src/MainWindow.cpp" line="624"/>
         <source>Remember my choice</source>
         <translation>记住我的选择</translation>

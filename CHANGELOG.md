@@ -5,6 +5,12 @@ All notable changes to this project are documented here, generated with
 commit messages. Commits made before this file existed are grouped
 best-effort under "Other".
 <!-- git-cliff: end of header -->
+## [0.10.1] - 2026-10-20
+
+### 🚀 Features
+
+- *(update)* Read the x64 download URL from windows_x64_url
+
 ## [0.10.0] - 2026-10-19
 
 ### 🚀 Features

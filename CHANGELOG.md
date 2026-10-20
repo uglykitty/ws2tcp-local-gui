@@ -10,6 +10,8 @@ best-effort under "Other".
 ### 🚀 Features
 
 - *(update)* Read the x64 download URL from windows_x64_url
+- *(ui)* Add countdown to the close prompt
+- *(windows)* Name the x64 installer win-x64 to match win-arm64
 
 ## [0.10.0] - 2026-10-19
 

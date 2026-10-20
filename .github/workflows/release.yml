@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ws2tcp-local-windows-x64
-          path: build/ws2tcp-local-gui-*-win64.exe
+          path: build/ws2tcp-local-gui-*-win-x64.exe
           if-no-files-found: error
 
   windows-arm64:
@@ -314,7 +314,7 @@ jobs:
 
           mkdir -p "upload/${version}"
 
-          exe=(dist/*-win64.exe)
+          exe=(dist/*-win-x64.exe)
           if [[ ${#exe[@]} -ne 1 ]]; then
             echo "Expected exactly one Windows installer, found ${#exe[@]}" >&2
             exit 1

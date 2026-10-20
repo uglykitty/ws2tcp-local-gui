@@ -1367,12 +1367,17 @@ void MainWindow::runUpdateCheck(bool startup) {
 
     QString downloadUrl;
 #if defined(Q_OS_WIN)
-    downloadUrl = manifest
-                      .value(QSysInfo::buildCpuArchitecture() ==
-                                     QLatin1String("arm64")
-                                 ? QStringLiteral("windows_arm64_url")
-                                 : QStringLiteral("windows_url"))
-                      .toString();
+    if (QSysInfo::buildCpuArchitecture() == QLatin1String("arm64")) {
+      downloadUrl =
+          manifest.value(QStringLiteral("windows_arm64_url")).toString();
+    } else {
+      downloadUrl =
+          manifest.value(QStringLiteral("windows_x64_url")).toString();
+      // Manifests published before the key was renamed only carry this one.
+      if (downloadUrl.isEmpty()) {
+        downloadUrl = manifest.value(QStringLiteral("windows_url")).toString();
+      }
+    }
 #elif defined(Q_OS_MACOS)
     downloadUrl = manifest.value(QStringLiteral("macos_url")).toString();
 #endif
